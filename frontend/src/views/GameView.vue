@@ -129,13 +129,30 @@ const players = computed(() => roomStore.room?.players ?? []);
         />
       </div>
       <div class="actions">
-        <NeonButton v-for="choice in choices" :key="choice" :disabled="gameStore.penaltyActive" @click="move(choice)">
+        <NeonButton
+          v-for="choice in choices"
+          :key="choice"
+          :disabled="gameStore.penaltyActive"
+          @click="move(choice)"
+        >
           {{ choice }}
         </NeonButton>
-        <NeonButton @click="leaveRoom">Leave</NeonButton>
+        <NeonButton @click="leaveRoom">
+          Leave
+        </NeonButton>
       </div>
-      <p v-if="roomStore.notice" class="notice">{{ roomStore.notice }}</p>
-      <p v-if="roomStore.error" class="error">{{ roomStore.error }}</p>
+      <p
+        v-if="roomStore.notice"
+        class="notice"
+      >
+        {{ roomStore.notice }}
+      </p>
+      <p
+        v-if="roomStore.error"
+        class="error"
+      >
+        {{ roomStore.error }}
+      </p>
       <p v-if="gameStore.result">
         Winner: {{ gameStore.result.winner ?? "Draw" }} | Gap: {{ gameStore.result.winGap }}
       </p>
@@ -144,9 +161,24 @@ const players = computed(() => roomStore.room?.players ?? []);
         :title="gameStore.penalty.name"
         :description="gameStore.penalty.description"
       />
-      <NeonButton v-if="gameStore.penalty" @click="completePenalty">Complete Penalty</NeonButton>
-      <p v-if="gameStore.lastPenaltyReason === 'timeout'" class="notice">Penalty timed out and round is unlocked.</p>
-      <p v-if="gameStore.lastPenaltyReason === 'completed'" class="notice">Penalty completed. Next round can start.</p>
+      <NeonButton
+        v-if="gameStore.penalty"
+        @click="completePenalty"
+      >
+        Complete Penalty
+      </NeonButton>
+      <p
+        v-if="gameStore.lastPenaltyReason === 'timeout'"
+        class="notice"
+      >
+        Penalty timed out and round is unlocked.
+      </p>
+      <p
+        v-if="gameStore.lastPenaltyReason === 'completed'"
+        class="notice"
+      >
+        Penalty completed. Next round can start.
+      </p>
     </GameBoard>
   </section>
 </template>

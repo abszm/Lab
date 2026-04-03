@@ -3,7 +3,10 @@ defineProps<{ disabled?: boolean }>();
 </script>
 
 <template>
-  <button class="neon" :disabled="disabled">
+  <button
+    class="neon"
+    :disabled="disabled"
+  >
     <slot />
   </button>
 </template>
