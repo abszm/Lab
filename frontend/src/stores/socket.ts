@@ -12,7 +12,10 @@ export const useSocketStore = defineStore("socket", {
     connect() {
       localStorage.setItem("heartbeat-player-id", this.playerId);
       if (!this.socket) {
-        this.socket = io({
+        const socketUrl = import.meta.env.PROD
+          ? window.location.origin
+          : "http://localhost:3001";
+        this.socket = io(socketUrl, {
           auth: { playerId: this.playerId },
           transports: ["websocket"],
           reconnection: true,
