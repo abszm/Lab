@@ -85,17 +85,39 @@ function leaveRoom() {
 <template>
   <GlassCard>
     <h2>Room {{ code }}</h2>
-    <p v-if="roomStore.notice" class="notice">{{ roomStore.notice }}</p>
-    <p v-if="roomStore.error" class="error">{{ roomStore.error }}</p>
-    <p v-if="!roomStore.room">Waiting for room state...</p>
+    <p
+      v-if="roomStore.notice"
+      class="notice"
+    >
+      {{ roomStore.notice }}
+    </p>
+    <p
+      v-if="roomStore.error"
+      class="error"
+    >
+      {{ roomStore.error }}
+    </p>
+    <p v-if="!roomStore.room">
+      Waiting for room state...
+    </p>
     <ul v-else>
-      <li v-for="player in roomStore.room.players" :key="player.id">
+      <li
+        v-for="player in roomStore.room.players"
+        :key="player.id"
+      >
         {{ player.id.slice(0, 8) }} · score {{ player.score }} · {{ player.isConnected ? "online" : "offline" }}
       </li>
     </ul>
     <div class="actions">
-      <NeonButton :disabled="!canStart" @click="startGame">Enter Game</NeonButton>
-      <NeonButton @click="leaveRoom">Leave</NeonButton>
+      <NeonButton
+        :disabled="!canStart"
+        @click="startGame"
+      >
+        Enter Game
+      </NeonButton>
+      <NeonButton @click="leaveRoom">
+        Leave
+      </NeonButton>
     </div>
   </GlassCard>
 </template>

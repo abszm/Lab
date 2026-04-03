@@ -80,18 +80,46 @@ function joinRoom() {
 
 <template>
   <GlassCard>
-    <h1 class="title">Project Heartbeat</h1>
-    <p class="subtitle">Create a duel room or join with a 6-char code.</p>
-    <p class="status" :class="{ online: socketStore.connected }">
+    <h1 class="title">
+      Project Heartbeat
+    </h1>
+    <p class="subtitle">
+      Create a duel room or join with a 6-char code.
+    </p>
+    <p
+      class="status"
+      :class="{ online: socketStore.connected }"
+    >
       {{ socketStore.connected ? "实时连接已建立" : "连接中断，正在尝试重连" }}
     </p>
     <div class="actions">
-      <NeonButton @click="createRoom">Create Room</NeonButton>
-      <input v-model="roomCode" maxlength="6" placeholder="ABC123" />
-      <NeonButton @click="joinRoom" :disabled="roomCode.length < 6">Join Room</NeonButton>
+      <NeonButton @click="createRoom">
+        Create Room
+      </NeonButton>
+      <input
+        v-model="roomCode"
+        maxlength="6"
+        placeholder="ABC123"
+      >
+      <NeonButton
+        :disabled="roomCode.length < 6"
+        @click="joinRoom"
+      >
+        Join Room
+      </NeonButton>
     </div>
-    <p v-if="roomStore.notice" class="notice">{{ roomStore.notice }}</p>
-    <p v-if="roomStore.error" class="error">{{ roomStore.error }}</p>
+    <p
+      v-if="roomStore.notice"
+      class="notice"
+    >
+      {{ roomStore.notice }}
+    </p>
+    <p
+      v-if="roomStore.error"
+      class="error"
+    >
+      {{ roomStore.error }}
+    </p>
   </GlassCard>
 </template>
 
