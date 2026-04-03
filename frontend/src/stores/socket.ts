@@ -4,7 +4,18 @@ import { io, type Socket } from "socket.io-client";
 export const useSocketStore = defineStore("socket", {
   state: () => ({
     socket: null as Socket | null,
-    playerId: localStorage.getItem("heartbeat-player-id") ?? crypto.randomUUID(),
+    playerId: (() => {
+      const stored = localStorage.getItem("heartbeat-player-id");
+      if (stored) return stored;
+      if (typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    })(),
     connected: false,
     currentRoomCode: localStorage.getItem("heartbeat-room-code") ?? ""
   }),
