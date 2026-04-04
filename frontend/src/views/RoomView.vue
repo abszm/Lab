@@ -5,6 +5,7 @@ import GlassCard from "../components/common/GlassCard.vue";
 import NeonButton from "../components/common/NeonButton.vue";
 import { useSocketStore } from "../stores/socket";
 import { useRoomStore, type RoomState } from "../stores/room";
+import { normalizeError } from "../utils/errorCopy";
 
 const route = useRoute();
 const router = useRouter();
@@ -32,7 +33,7 @@ function handleReconnected(payload: { playerId: string }) {
 }
 
 function handleRoomError(payload: { message: string }) {
-  roomStore.setError(payload.message);
+  roomStore.setError(normalizeError(payload.message));
 }
 
 onMounted(() => {
@@ -84,7 +85,7 @@ function leaveRoom() {
 
 <template>
   <GlassCard>
-    <h2>Room {{ code }}</h2>
+    <h2>房间 {{ code }}</h2>
     <p
       v-if="roomStore.notice"
       class="notice"
@@ -98,14 +99,14 @@ function leaveRoom() {
       {{ roomStore.error }}
     </p>
     <p v-if="!roomStore.room">
-      Waiting for room state...
+      正在等待房间状态...
     </p>
     <ul v-else>
       <li
         v-for="player in roomStore.room.players"
         :key="player.id"
       >
-        {{ player.id.slice(0, 8) }} · score {{ player.score }} · {{ player.isConnected ? "online" : "offline" }}
+        {{ player.id.slice(0, 8) }} · 积分 {{ player.score }} · {{ player.isConnected ? "在线" : "离线" }}
       </li>
     </ul>
     <div class="actions">
@@ -113,10 +114,10 @@ function leaveRoom() {
         :disabled="!canStart"
         @click="startGame"
       >
-        Enter Game
+        进入对局
       </NeonButton>
       <NeonButton @click="leaveRoom">
-        Leave
+        离开房间
       </NeonButton>
     </div>
   </GlassCard>
