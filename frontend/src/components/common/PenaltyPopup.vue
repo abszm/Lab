@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <div class="penalty">
     <p class="eyebrow">
-      Penalty Triggered
+      惩罚触发
     </p>
     <h3>{{ title }}</h3>
     <p>{{ description }}</p>

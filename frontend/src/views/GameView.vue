@@ -8,6 +8,7 @@ import PenaltyPopup from "../components/common/PenaltyPopup.vue";
 import { useSocketStore } from "../stores/socket";
 import { useRoomStore, type RoomState } from "../stores/room";
 import { useGameStore, type GameResult, type Penalty } from "../stores/game";
+import { normalizeError } from "../utils/errorCopy";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,6 +18,11 @@ const gameStore = useGameStore();
 
 const code = computed(() => route.params.code?.toString() ?? "");
 const choices = ["rock", "paper", "scissors"];
+const choiceLabels: Record<string, string> = {
+  rock: "石头",
+  paper: "布",
+  scissors: "剪刀"
+};
 
 function handleRoomState(payload: { room: RoomState | null }) {
   roomStore.setRoom(payload.room);
@@ -40,7 +46,7 @@ function handlePenaltyTimeout(payload: { reason?: "completed" | "timeout" }) {
 }
 
 function handleRoomError(payload: { message: string }) {
-  roomStore.setError(payload.message);
+  roomStore.setError(normalizeError(payload.message));
 }
 
 function handleRoomClosed(payload: { reason?: string }) {
@@ -119,7 +125,7 @@ const players = computed(() => roomStore.room?.players ?? []);
 <template>
   <section class="layout">
     <GameBoard>
-      <h2>Rock Paper Scissors</h2>
+      <h2>石头剪刀布</h2>
       <div class="grid">
         <PlayerInfo
           v-for="player in players"
@@ -135,10 +141,10 @@ const players = computed(() => roomStore.room?.players ?? []);
           :disabled="gameStore.penaltyActive"
           @click="move(choice)"
         >
-          {{ choice }}
+          {{ choiceLabels[choice] }}
         </NeonButton>
         <NeonButton @click="leaveRoom">
-          Leave
+          离开房间
         </NeonButton>
       </div>
       <p
@@ -154,7 +160,7 @@ const players = computed(() => roomStore.room?.players ?? []);
         {{ roomStore.error }}
       </p>
       <p v-if="gameStore.result">
-        Winner: {{ gameStore.result.winner ?? "Draw" }} | Gap: {{ gameStore.result.winGap }}
+        获胜者：{{ gameStore.result.winner ?? "平局" }} | 分差：{{ gameStore.result.winGap }}
       </p>
       <PenaltyPopup
         v-if="gameStore.penalty"
@@ -165,19 +171,19 @@ const players = computed(() => roomStore.room?.players ?? []);
         v-if="gameStore.penalty"
         @click="completePenalty"
       >
-        Complete Penalty
+        完成惩罚
       </NeonButton>
       <p
         v-if="gameStore.lastPenaltyReason === 'timeout'"
         class="notice"
       >
-        Penalty timed out and round is unlocked.
+        惩罚超时，本回合已解锁。
       </p>
       <p
         v-if="gameStore.lastPenaltyReason === 'completed'"
         class="notice"
       >
-        Penalty completed. Next round can start.
+        惩罚已完成，可开始下一回合。
       </p>
     </GameBoard>
   </section>

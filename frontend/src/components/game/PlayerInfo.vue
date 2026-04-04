@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <article class="player">
     <strong>{{ label }}</strong>
-    <span>Score: {{ score }}</span>
+    <span>分数：{{ score }}</span>
   </article>
 </template>
 

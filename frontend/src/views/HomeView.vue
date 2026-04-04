@@ -5,23 +5,13 @@ import GlassCard from "../components/common/GlassCard.vue";
 import NeonButton from "../components/common/NeonButton.vue";
 import { useSocketStore } from "../stores/socket";
 import { useRoomStore, type RoomState } from "../stores/room";
+import { normalizeError } from "../utils/errorCopy";
 
 const router = useRouter();
 const socketStore = useSocketStore();
 const roomStore = useRoomStore();
 
 const roomCode = ref("");
-
-const ERROR_COPY: Record<string, string> = {
-  ROOM_NOT_FOUND: "房间不存在，请确认房间码。",
-  ROOM_FULL: "房间已满，请让其中一位玩家离开后重试。",
-  PLAYER_ALREADY_IN_ROOM: "你已经在这个房间中了。",
-  ALREADY_IN_GAME: "你已经在其它房间中，请先离开当前房间。"
-};
-
-function normalizeError(message: string): string {
-  return ERROR_COPY[message] ?? message;
-}
 
 function handleCreated(payload: { code: string }) {
   socketStore.setRoomCode(payload.code);
@@ -81,10 +71,10 @@ function joinRoom() {
 <template>
   <GlassCard>
     <h1 class="title">
-      Project Heartbeat
+      心跳对战
     </h1>
     <p class="subtitle">
-      Create a duel room or join with a 6-char code.
+      创建对战房间，或输入 6 位房间码加入。
     </p>
     <p
       class="status"
@@ -94,18 +84,18 @@ function joinRoom() {
     </p>
     <div class="actions">
       <NeonButton @click="createRoom">
-        Create Room
+        创建房间
       </NeonButton>
       <input
         v-model="roomCode"
         maxlength="6"
-        placeholder="ABC123"
+        placeholder="请输入 6 位房间码（如 ABC123）"
       >
       <NeonButton
         :disabled="roomCode.length < 6"
         @click="joinRoom"
       >
-        Join Room
+        加入房间
       </NeonButton>
     </div>
     <p
