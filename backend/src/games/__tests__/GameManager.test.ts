@@ -120,26 +120,37 @@ describe("GameManager", () => {
     const manager = new GameManager();
     manager.initRoomGame("ROOM03", "gomoku-duel", ["p1", "p2"]);
 
-    const moves = [
-      ["p1", "0-0"],
-      ["p2", "1-0"],
-      ["p1", "0-1"],
-      ["p2", "1-1"],
-      ["p1", "0-2"],
-      ["p2", "1-2"],
-      ["p1", "0-3"],
-      ["p2", "1-3"]
+    let starter = "p1";
+    let opponent = "p2";
+
+    try {
+      manager.applyMove("ROOM03", { playerId: starter, action: "0-0", timestamp: Date.now() });
+    } catch (error) {
+      expect((error as Error).message).toBe("INVALID_MOVE");
+      starter = "p2";
+      opponent = "p1";
+      manager.applyMove("ROOM03", { playerId: starter, action: "0-0", timestamp: Date.now() });
+    }
+
+    const followUpMoves = [
+      [opponent, "1-0"],
+      [starter, "0-1"],
+      [opponent, "1-1"],
+      [starter, "0-2"],
+      [opponent, "1-2"],
+      [starter, "0-3"],
+      [opponent, "1-3"]
     ] as const;
 
-    for (const [playerId, action] of moves) {
+    for (const [playerId, action] of followUpMoves) {
       manager.applyMove("ROOM03", { playerId, action, timestamp: Date.now() });
     }
 
-    const outcome = manager.applyMove("ROOM03", { playerId: "p1", action: "0-4", timestamp: Date.now() });
-    expect(outcome.result?.winner).toBe("p1");
+    const outcome = manager.applyMove("ROOM03", { playerId: starter, action: "0-4", timestamp: Date.now() });
+    expect(outcome.result?.winner).toBe(starter);
     expect(outcome.result?.cardOptions).toHaveLength(5);
-    const board = outcome.state.board as { winner: string | null; winningLine: string[] };
-    expect(board.winner).toBe("p1");
-    expect(board.winningLine).toHaveLength(5);
+    const finalBoard = outcome.state.board as { winner: string | null; winningLine: string[] };
+    expect(finalBoard.winner).toBe(starter);
+    expect(finalBoard.winningLine).toHaveLength(5);
   });
 });

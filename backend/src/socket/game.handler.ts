@@ -123,6 +123,16 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       if (outcome.result) {
         deps.io.to(session.roomCode).emit("game:result", { result: outcome.result });
 
+        const room = deps.store.getRoom(session.roomCode);
+        if (room) {
+          room.players = room.players.map((player) => ({
+            ...player,
+            score: outcome.result?.scores[player.id] ?? player.score
+          }));
+          deps.store.setRoom(session.roomCode, room);
+          deps.io.to(session.roomCode).emit("room:state", { room });
+        }
+
         if (outcome.result.winner && outcome.result.cardOptions?.length) {
           const pending = buildEnhancedCardPayload(session.roomCode, outcome.result.cardOptions, deps);
           if (pending) {
