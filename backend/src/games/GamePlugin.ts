@@ -8,4 +8,5 @@ export interface GamePlugin {
   validateMove(move: GameMove, state: GameState): boolean;
   calculateResult(state: GameState): GameResult;
   getValidMoves(state: GameState, playerId: string): string[];
+  toClientState?(state: GameState): GameState;
 }

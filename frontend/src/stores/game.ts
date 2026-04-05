@@ -15,14 +15,25 @@ export interface GameResult {
   winGap: number;
 }
 
+export interface GameState {
+  board: unknown;
+  players: string[];
+  moves: Record<string, string>;
+  phase: "waiting" | "resolved";
+}
+
 export const useGameStore = defineStore("game", {
   state: () => ({
+    state: null as GameState | null,
     result: null as GameResult | null,
     penalty: null as Penalty | null,
     penaltyActive: false,
     lastPenaltyReason: "" as "" | "completed" | "timeout"
   }),
   actions: {
+    setState(payload: GameState) {
+      this.state = payload;
+    },
     setResult(payload: GameResult) {
       this.result = payload;
     },
@@ -34,6 +45,13 @@ export const useGameStore = defineStore("game", {
       this.penalty = null;
       this.penaltyActive = false;
       this.lastPenaltyReason = reason;
+    },
+    resetRound() {
+      this.state = null;
+      this.result = null;
+      this.penalty = null;
+      this.penaltyActive = false;
+      this.lastPenaltyReason = "";
     }
   }
 });
