@@ -44,6 +44,23 @@ export class GameManager {
     return state;
   }
 
+  resetRoomGame(roomCode: string, gameId: string, players: string[]): GameState {
+    const plugin = getGame(gameId);
+    if (!plugin) {
+      throw new Error("GAME_NOT_FOUND");
+    }
+
+    const state = plugin.initBoard();
+    state.players = players;
+    this.games.set(roomCode, {
+      gameId,
+      state,
+      scoreBoard: Object.fromEntries(players.map((id) => [id, 0])),
+      penaltyHistory: []
+    });
+    return state;
+  }
+
   hasRoomGame(roomCode: string): boolean {
     return this.games.has(roomCode);
   }

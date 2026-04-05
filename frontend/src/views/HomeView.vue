@@ -12,7 +12,7 @@ const socketStore = useSocketStore();
 const roomStore = useRoomStore();
 
 const roomCode = ref("");
-const selectedGameId = ref("minesweeper-duel");
+const selectedGameId = ref("gomoku-duel");
 
 function handleCreated(payload: { code: string }) {
   socketStore.setRoomCode(payload.code);
@@ -85,8 +85,11 @@ function joinRoom() {
     </p>
     <div class="actions">
       <select v-model="selectedGameId">
+        <option value="gomoku-duel">
+          五子棋（新）
+        </option>
         <option value="minesweeper-duel">
-          双人扫雷（新）
+          双人扫雷
         </option>
         <option value="rock-paper-scissors">
           石头剪刀布

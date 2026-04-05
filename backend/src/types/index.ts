@@ -32,6 +32,14 @@ export interface GameResult {
   isDraw: boolean;
   scores: Record<string, number>;
   winGap: number;
+  cardOptions?: RewardCardOption[];
+}
+
+export interface RewardCardOption {
+  id: string;
+  cellId: string;
+  level: 1 | 2 | 3 | 4;
+  displayName: string;
 }
 
 export type PenaltyType = "action" | "verbal" | "visual" | "physical";

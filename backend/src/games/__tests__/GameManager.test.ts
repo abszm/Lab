@@ -115,4 +115,31 @@ describe("GameManager", () => {
     const outcomeBoard = outcome.state.board as { cells: Array<{ id: string; hasMine?: boolean }> };
     expect(outcomeBoard.cells[0]).not.toHaveProperty("hasMine");
   });
+
+  it("supports gomoku duel turns and winner detection", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOM03", "gomoku-duel", ["p1", "p2"]);
+
+    const moves = [
+      ["p1", "0-0"],
+      ["p2", "1-0"],
+      ["p1", "0-1"],
+      ["p2", "1-1"],
+      ["p1", "0-2"],
+      ["p2", "1-2"],
+      ["p1", "0-3"],
+      ["p2", "1-3"]
+    ] as const;
+
+    for (const [playerId, action] of moves) {
+      manager.applyMove("ROOM03", { playerId, action, timestamp: Date.now() });
+    }
+
+    const outcome = manager.applyMove("ROOM03", { playerId: "p1", action: "0-4", timestamp: Date.now() });
+    expect(outcome.result?.winner).toBe("p1");
+    expect(outcome.result?.cardOptions).toHaveLength(5);
+    const board = outcome.state.board as { winner: string | null; winningLine: string[] };
+    expect(board.winner).toBe("p1");
+    expect(board.winningLine).toHaveLength(5);
+  });
 });
