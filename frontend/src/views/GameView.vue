@@ -131,6 +131,9 @@ function handleRestartResult(payload: { accepted: boolean; responderId: string }
 
   if (payload.accepted) {
     roomStore.setNotice("双方已确认，棋盘已重置。新一局开始。");
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 350);
     return;
   }
 
@@ -563,8 +566,8 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
   display: grid;
   grid-template-columns: repeat(15, minmax(18px, 1fr));
   gap: 0.25rem;
-  background: rgba(31, 22, 11, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(208, 176, 123, 0.42), rgba(189, 152, 95, 0.45));
+  border: 1px solid rgba(245, 220, 176, 0.45);
   border-radius: 0.75rem;
   padding: 0.55rem;
 }
@@ -573,8 +576,8 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
   position: relative;
   aspect-ratio: 1;
   border-radius: 0.25rem;
-  border: 1px solid rgba(232, 208, 154, 0.2);
-  background: rgba(210, 178, 122, 0.08);
+  border: 1px solid rgba(98, 65, 21, 0.35);
+  background: rgba(238, 214, 170, 0.62);
   cursor: pointer;
   padding: 0;
 }

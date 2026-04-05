@@ -26,6 +26,24 @@ interface GomokuBoard {
   winningLine: string[];
 }
 
+function pickRandomPlayer(players: string[]): string {
+  if (players.length === 0) {
+    return "";
+  }
+  if (players.length === 1) {
+    return players[0];
+  }
+  const index = Math.floor(Math.random() * players.length);
+  return players[index];
+}
+
+function ensureCurrentPlayer(state: GameState, board: GomokuBoard): string {
+  if (!board.currentPlayerId) {
+    board.currentPlayerId = pickRandomPlayer(state.players);
+  }
+  return board.currentPlayerId;
+}
+
 function createBoard(): GomokuBoard {
   const cells: GomokuCell[] = [];
   for (let row = 0; row < BOARD_SIZE; row += 1) {
@@ -86,7 +104,7 @@ function toStone(playerId: string, state: GameState): Stone {
 }
 
 function getCurrentPlayerId(state: GameState, board: GomokuBoard): string {
-  return board.currentPlayerId || state.players[0] || "";
+  return ensureCurrentPlayer(state, board);
 }
 
 function checkWinningLine(board: GomokuBoard, row: number, col: number, stone: Stone): string[] {
@@ -183,9 +201,7 @@ export const GomokuDuel: GamePlugin = {
   },
   calculateResult: (state: GameState): GameResult => {
     const board = getBoard(state);
-    if (!board.currentPlayerId && state.players[0]) {
-      board.currentPlayerId = state.players[0];
-    }
+    ensureCurrentPlayer(state, board);
 
     const [playerId, action] = Object.entries(state.moves)[0] ?? [];
     if (!playerId || !action) {
@@ -254,9 +270,7 @@ export const GomokuDuel: GamePlugin = {
   },
   toClientState: (state: GameState): GameState => {
     const board = getBoard(state);
-    if (!board.currentPlayerId && state.players[0]) {
-      board.currentPlayerId = state.players[0];
-    }
+    ensureCurrentPlayer(state, board);
 
     return {
       ...state,
