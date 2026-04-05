@@ -1,3 +1,5 @@
+import taskOverridesJson from "./gomokuTaskOverrides.json" with { type: "json" };
+
 export interface GomokuTaskItem {
   id: string;
   cellId: string;
@@ -15,7 +17,7 @@ export interface GomokuTaskTextOverride {
 
 // 在这个对象中按 cellId 覆盖默认占位文案，例如：
 // "7-7": { title: "中心挑战", description: "在这里写你的自定义任务" }
-export const GOMOKU_TASK_TEXT_OVERRIDES: Record<string, GomokuTaskTextOverride> = {};
+export const GOMOKU_TASK_TEXT_OVERRIDES: Record<string, GomokuTaskTextOverride> = taskOverridesJson;
 
 function resolveLevel(row: number, col: number): 1 | 2 | 3 | 4 {
   const isOuterTwoRings = row < 2 || row > 12 || col < 2 || col > 12;
