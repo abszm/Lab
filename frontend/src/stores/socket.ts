@@ -23,10 +23,9 @@ export const useSocketStore = defineStore("socket", {
     connect() {
       localStorage.setItem("heartbeat-player-id", this.playerId);
       if (!this.socket) {
-        const socketUrl = import.meta.env.PROD
-          ? window.location.origin
-          : "http://localhost:3001";
-        this.socket = io(socketUrl, {
+        const socketUrl = import.meta.env.VITE_SOCKET_URL?.trim();
+        this.socket = io(socketUrl || undefined, {
+          path: "/socket.io",
           auth: { playerId: this.playerId },
           transports: ["websocket"],
           reconnection: true,
