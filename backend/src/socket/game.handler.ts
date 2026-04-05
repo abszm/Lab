@@ -2,6 +2,7 @@ import type { Server, Socket } from "socket.io";
 import { GameManager } from "../games/GameManager.js";
 import { InMemoryStore } from "../rooms/inMemoryStore.js";
 import type { Penalty, RewardCardOption } from "../types/index.js";
+import { GOMOKU_TASK_POOL } from "../games/gomokuTaskPool.js";
 
 interface Dependencies {
   io: Server;
@@ -66,35 +67,41 @@ function setActivePenalty(io: Server, roomCode: string, penalty: Penalty): void 
   penaltyTimers.set(roomCode, timer);
 }
 
-function buildEnhancedCardPayload(roomCode: string, options: RewardCardOption[], deps: Dependencies): PendingCardReveal | null {
-  const state = deps.gameManager.getRoomGameState(roomCode);
+function shuffleArray<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function buildRandomCardDraft(roomCode: string, deps: Dependencies): PendingCardReveal | null {
   const room = deps.store.getRoom(roomCode);
-  if (!state || !room) {
+  if (!room) {
     return null;
   }
 
-  const board = state.board as {
-    cells?: Array<{ id: string; taskTitle: string; taskDescription: string; taskLevel: 1 | 2 | 3 | 4 }>;
-    winner?: string | null;
-  };
-
-  if (!board.cells || !board.winner) {
+  const state = deps.gameManager.getRoomGameState(roomCode);
+  const board = state?.board as { winner?: string | null } | undefined;
+  const winnerId = board?.winner;
+  if (!winnerId) {
     return null;
   }
 
-  const mapped = options.map((option) => {
-    const cell = board.cells?.find((item) => item.id === option.cellId);
+  const selectedTasks = shuffleArray(GOMOKU_TASK_POOL).slice(0, 5);
+  const mapped = selectedTasks.map((task, index) => {
     return {
-      id: option.id,
-      cellId: option.cellId,
-      level: cell?.taskLevel ?? option.level,
-      title: `强化：${cell?.taskTitle ?? "占位任务"}`,
-      description: `${cell?.taskDescription ?? "待填写任务文案"}（强化版）`
+      id: `card-${index + 1}-${task.id}`,
+      cellId: task.cellId,
+      level: task.level,
+      title: `强化：${task.title}`,
+      description: `${task.description}（随机盲选）`
     };
   });
 
   return {
-    winnerId: board.winner,
+    winnerId,
     options: mapped
   };
 }
@@ -121,8 +128,6 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
 
       deps.io.to(session.roomCode).emit("game:state", { state: outcome.state });
       if (outcome.result) {
-        deps.io.to(session.roomCode).emit("game:result", { result: outcome.result });
-
         const room = deps.store.getRoom(session.roomCode);
         if (room) {
           room.players = room.players.map((player) => ({
@@ -133,16 +138,26 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
           deps.io.to(session.roomCode).emit("room:state", { room });
         }
 
-        if (outcome.result.winner && outcome.result.cardOptions?.length) {
-          const pending = buildEnhancedCardPayload(session.roomCode, outcome.result.cardOptions, deps);
+        if (outcome.result.winner && room?.gameId === "gomoku-duel") {
+          const pending = buildRandomCardDraft(session.roomCode, deps);
           if (pending) {
+            const cardOptions: RewardCardOption[] = pending.options.map((item) => ({
+              id: item.id,
+              cellId: item.cellId,
+              level: item.level,
+              displayName: `盲选卡牌 ${item.id.split("-")[1]}`
+            }));
+
+            outcome.result.cardOptions = cardOptions;
             pendingCardReveals.set(session.roomCode, pending);
             deps.io.to(session.roomCode).emit("game:card:draft", {
               winnerId: pending.winnerId,
-              cards: outcome.result.cardOptions
+              cards: cardOptions
             });
           }
         }
+
+        deps.io.to(session.roomCode).emit("game:result", { result: outcome.result });
       }
       if (outcome.penalty) {
         setActivePenalty(deps.io, session.roomCode, outcome.penalty);
