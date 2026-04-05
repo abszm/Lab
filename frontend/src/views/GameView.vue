@@ -31,6 +31,24 @@ interface MinesweeperCell {
   exploded: boolean;
 }
 
+function getPlayerLabel(playerId: string): string {
+  const room = roomStore.room;
+  if (!room) {
+    return "玩家";
+  }
+
+  if (playerId === room.hostId) {
+    return "玩家1";
+  }
+
+  const index = room.players.findIndex((player) => player.id === playerId);
+  if (index >= 0) {
+    return `玩家${index + 1}`;
+  }
+
+  return "玩家2";
+}
+
 function handleRoomState(payload: { room: RoomState | null }) {
   roomStore.setRoom(payload.room);
 }
@@ -68,11 +86,11 @@ function handleRoomClosed(payload: { reason?: string }) {
 }
 
 function handleDisconnected(payload: { playerId: string }) {
-  roomStore.setNotice(`玩家 ${payload.playerId.slice(0, 8)} 已断线。`);
+  roomStore.setNotice(`${getPlayerLabel(payload.playerId)} 已断线。`);
 }
 
 function handleReconnected(payload: { playerId: string }) {
-  roomStore.setNotice(`玩家 ${payload.playerId.slice(0, 8)} 已重连。`);
+  roomStore.setNotice(`${getPlayerLabel(payload.playerId)} 已重连。`);
 }
 
 onMounted(() => {
@@ -160,7 +178,7 @@ function revealCell(cellId: string) {
         <PlayerInfo
           v-for="player in players"
           :key="player.id"
-          :label="player.id.slice(0, 8)"
+          :label="getPlayerLabel(player.id)"
           :score="player.score"
         />
       </div>

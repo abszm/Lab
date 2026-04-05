@@ -14,6 +14,24 @@ const roomStore = useRoomStore();
 
 const code = computed(() => route.params.code?.toString() ?? "");
 
+function getPlayerLabel(playerId: string): string {
+  const room = roomStore.room;
+  if (!room) {
+    return "玩家";
+  }
+
+  if (playerId === room.hostId) {
+    return "玩家1";
+  }
+
+  const index = room.players.findIndex((player) => player.id === playerId);
+  if (index >= 0) {
+    return `玩家${index + 1}`;
+  }
+
+  return "玩家2";
+}
+
 function handleRoomState(payload: { room: RoomState | null }) {
   roomStore.setRoom(payload.room);
 }
@@ -25,11 +43,11 @@ function handleRoomClosed(payload: { reason?: string }) {
 }
 
 function handleDisconnected(payload: { playerId: string }) {
-  roomStore.setNotice(`玩家 ${payload.playerId.slice(0, 8)} 已断线，等待重连中。`);
+  roomStore.setNotice(`${getPlayerLabel(payload.playerId)} 已断线，等待重连中。`);
 }
 
 function handleReconnected(payload: { playerId: string }) {
-  roomStore.setNotice(`玩家 ${payload.playerId.slice(0, 8)} 已重连。`);
+  roomStore.setNotice(`${getPlayerLabel(payload.playerId)} 已重连。`);
 }
 
 function handleRoomError(payload: { message: string }) {
@@ -106,7 +124,7 @@ function leaveRoom() {
         v-for="player in roomStore.room.players"
         :key="player.id"
       >
-        {{ player.id.slice(0, 8) }} · 积分 {{ player.score }} · {{ player.isConnected ? "在线" : "离线" }}
+        {{ getPlayerLabel(player.id) }} · 积分 {{ player.score }} · {{ player.isConnected ? "在线" : "离线" }}
       </li>
     </ul>
     <div class="actions">
