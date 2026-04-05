@@ -1,6 +1,7 @@
 import type { GamePlugin } from "./GamePlugin.js";
 import { RockPaperScissors } from "./RockPaperScissors.js";
 import { MinesweeperDuel } from "./MinesweeperDuel.js";
+import { GomokuDuel } from "./GomokuDuel.js";
 
 const registry = new Map<string, GamePlugin>();
 
@@ -21,3 +22,4 @@ export function listGames(): GamePlugin[] {
 
 registerGame(RockPaperScissors);
 registerGame(MinesweeperDuel);
+registerGame(GomokuDuel);
