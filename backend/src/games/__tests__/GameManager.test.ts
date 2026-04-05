@@ -97,4 +97,22 @@ describe("GameManager", () => {
       manager.applyMove("ROOM01", { playerId: "p1", action: "paper", timestamp: Date.now() });
     }).toThrowError("ALREADY_MOVED");
   });
+
+  it("supports minesweeper duel and sanitizes board state", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOM02", "minesweeper-duel", ["p1", "p2"]);
+
+    const initialState = manager.getRoomGameState("ROOM02");
+    const board = initialState?.board as { cells: Array<{ id: string; hasMine?: boolean }> };
+    expect(board.cells.length).toBe(16);
+    expect(board.cells[0]).not.toHaveProperty("hasMine");
+
+    const [firstCell, secondCell] = board.cells;
+    manager.applyMove("ROOM02", { playerId: "p1", action: firstCell.id, timestamp: Date.now() });
+    const outcome = manager.applyMove("ROOM02", { playerId: "p2", action: secondCell.id, timestamp: Date.now() });
+
+    expect(outcome.result).toBeDefined();
+    const outcomeBoard = outcome.state.board as { cells: Array<{ id: string; hasMine?: boolean }> };
+    expect(outcomeBoard.cells[0]).not.toHaveProperty("hasMine");
+  });
 });

@@ -80,6 +80,12 @@ export function roomHandler(socket: Socket, deps: Dependencies): void {
       if (room.players.length === 2 && !deps.gameManager.hasRoomGame(code)) {
         deps.gameManager.initRoomGame(code, room.gameId, room.players.map((item) => item.id));
       }
+
+      const gameState = deps.gameManager.getRoomGameState(code);
+      if (gameState) {
+        deps.io.to(code).emit("game:state", { state: gameState });
+      }
+
       deps.io.to(code).emit("room:joined", { room });
       deps.io.to(code).emit("room:state", { room });
     } catch (error) {

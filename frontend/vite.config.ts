@@ -4,7 +4,7 @@ import vue from "@vitejs/plugin-vue";
 export default defineConfig({
   plugins: [vue()],
   server: {
-    allowedHosts: true,
+    allowedHosts: [".monkeycode-ai.online"],
     proxy: {
       "/api": {
         target: "http://localhost:3001",

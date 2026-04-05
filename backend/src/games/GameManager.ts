@@ -13,6 +13,15 @@ export class GameManager {
   private readonly games = new Map<string, RuntimeGame>();
   private readonly penaltySystem = new PenaltySystem();
 
+  private buildClientState(runtime: RuntimeGame): GameState {
+    const plugin = getGame(runtime.gameId);
+    if (!plugin?.toClientState) {
+      return runtime.state;
+    }
+
+    return plugin.toClientState(structuredClone(runtime.state));
+  }
+
   initRoomGame(roomCode: string, gameId: string, players: string[]): GameState {
     const existing = this.games.get(roomCode);
     if (existing) {
@@ -37,6 +46,15 @@ export class GameManager {
 
   hasRoomGame(roomCode: string): boolean {
     return this.games.has(roomCode);
+  }
+
+  getRoomGameState(roomCode: string): GameState | null {
+    const runtime = this.games.get(roomCode);
+    if (!runtime) {
+      return null;
+    }
+
+    return this.buildClientState(runtime);
   }
 
   closeRoom(roomCode: string): void {
@@ -69,7 +87,7 @@ export class GameManager {
     runtime.state.moves[move.playerId] = move.action;
 
     if (Object.keys(runtime.state.moves).length < plugin.getRequiredPlayers()) {
-      return { state: runtime.state };
+      return { state: this.buildClientState(runtime) };
     }
 
     runtime.state.phase = "resolved";
@@ -94,6 +112,6 @@ export class GameManager {
 
     runtime.state.moves = {};
     runtime.state.phase = "waiting";
-    return { state: runtime.state, result, penalty };
+    return { state: this.buildClientState(runtime), result, penalty };
   }
 }

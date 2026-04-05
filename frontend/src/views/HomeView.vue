@@ -12,6 +12,7 @@ const socketStore = useSocketStore();
 const roomStore = useRoomStore();
 
 const roomCode = ref("");
+const selectedGameId = ref("minesweeper-duel");
 
 function handleCreated(payload: { code: string }) {
   socketStore.setRoomCode(payload.code);
@@ -60,7 +61,7 @@ onUnmounted(() => {
 });
 
 function createRoom() {
-  socketStore.socket?.emit("room:create", { gameId: "rock-paper-scissors" });
+  socketStore.socket?.emit("room:create", { gameId: selectedGameId.value });
 }
 
 function joinRoom() {
@@ -83,6 +84,14 @@ function joinRoom() {
       {{ socketStore.connected ? "实时连接已建立" : "连接中断，正在尝试重连" }}
     </p>
     <div class="actions">
+      <select v-model="selectedGameId">
+        <option value="minesweeper-duel">
+          双人扫雷（新）
+        </option>
+        <option value="rock-paper-scissors">
+          石头剪刀布
+        </option>
+      </select>
       <NeonButton @click="createRoom">
         创建房间
       </NeonButton>
@@ -140,6 +149,14 @@ function joinRoom() {
 }
 
 input {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  padding: 0.65rem 0.8rem;
+}
+
+select {
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
