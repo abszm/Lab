@@ -23,11 +23,11 @@ export const useSocketStore = defineStore("socket", {
     connect() {
       localStorage.setItem("heartbeat-player-id", this.playerId);
       if (!this.socket) {
-        const socketUrl = import.meta.env.VITE_SOCKET_URL?.trim();
+        const socketUrl = import.meta.env.VITE_SOCKET_URL?.trim()
+          || `${window.location.protocol}//${window.location.hostname}:3001`;
         this.socket = io(socketUrl || undefined, {
           path: "/socket.io",
           auth: { playerId: this.playerId },
-          transports: ["websocket"],
           reconnection: true,
           reconnectionAttempts: Infinity
         });

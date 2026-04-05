@@ -1,17 +1,19 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
+const backendProxyTarget = process.env.VITE_BACKEND_PROXY_TARGET || "http://localhost:3001";
+
 export default defineConfig({
   plugins: [vue()],
   server: {
     allowedHosts: [".monkeycode-ai.online"],
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: backendProxyTarget,
         changeOrigin: true
       },
       "/socket.io": {
-        target: "http://localhost:3001",
+        target: backendProxyTarget,
         ws: true,
         changeOrigin: true
       }
