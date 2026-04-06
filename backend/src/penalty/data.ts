@@ -83,8 +83,7 @@ export const GAME_PENALTY_DATA: Record<string, PenaltyLevel[]> = {
       minGap: 1,
       maxGap: 2,
       items: [
-        { id: "GO-L1-1", level: 1, name: "棋感评价", description: "失败方评价胜者这局棋感。", duration: 12, type: "verbal" },
-        { id: "GO-L1-2", level: 1, name: "一步之差", description: "失败方说出一步之差的关键点。", duration: 15, type: "verbal" }
+        { id: "GO-L1-PENDING", level: 1, name: "待配置", description: "五子棋 L1 惩罚任务待配置。", duration: 1, type: "verbal" }
       ]
     },
     {
@@ -92,8 +91,7 @@ export const GAME_PENALTY_DATA: Record<string, PenaltyLevel[]> = {
       minGap: 3,
       maxGap: 4,
       items: [
-        { id: "GO-L2-1", level: 2, name: "先手让步", description: "下一局失败方开局让一步。", duration: 30, type: "action" },
-        { id: "GO-L2-2", level: 2, name: "防守姿态", description: "失败方保持防守姿态 20 秒。", duration: 20, type: "physical" }
+        { id: "GO-L2-PENDING", level: 2, name: "待配置", description: "五子棋 L2 惩罚任务待配置。", duration: 1, type: "action" }
       ]
     },
     {
@@ -101,8 +99,7 @@ export const GAME_PENALTY_DATA: Record<string, PenaltyLevel[]> = {
       minGap: 5,
       maxGap: 6,
       items: [
-        { id: "GO-L3-1", level: 3, name: "盲棋回忆", description: "失败方口述 5 步棋路。", duration: 45, type: "visual" },
-        { id: "GO-L3-2", level: 3, name: "连珠复刻", description: "失败方复刻连珠路径。", duration: 60, type: "action" }
+        { id: "GO-L3-PENDING", level: 3, name: "待配置", description: "五子棋 L3 惩罚任务待配置。", duration: 1, type: "visual" }
       ]
     },
     {
@@ -110,8 +107,7 @@ export const GAME_PENALTY_DATA: Record<string, PenaltyLevel[]> = {
       minGap: 7,
       maxGap: Number.POSITIVE_INFINITY,
       items: [
-        { id: "GO-L4-1", level: 4, name: "终盘宣言", description: "失败方执行终盘宣言任务。", duration: 120, type: "verbal" },
-        { id: "GO-L4-2", level: 4, name: "绝地翻盘", description: "失败方完成一项高压挑战。", duration: 150, type: "action" }
+        { id: "GO-L4-PENDING", level: 4, name: "待配置", description: "五子棋 L4 惩罚任务待配置。", duration: 1, type: "action" }
       ]
     }
   ],

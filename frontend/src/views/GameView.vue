@@ -79,6 +79,8 @@ const rouletteSectors = ref<string[]>([]);
 const rouletteResult = ref("");
 const rouletteSpinning = ref(false);
 const rouletteTriggerPlayerId = ref("");
+const resultCardFlipped = ref(false);
+const resultCardPulse = ref(false);
 
 const rouletteSectorAngle = computed(() => (rouletteSectors.value.length ? 360 / rouletteSectors.value.length : 0));
 const rouletteBackground = computed(() => {
@@ -153,6 +155,8 @@ function handleRouletteSpinEnd(payload: { resultLabel: string; byPlayerId: strin
 
 function handleGameResult(payload: { result: GameResult }) {
   gameStore.setResult(payload.result);
+  resultCardFlipped.value = false;
+  resultCardPulse.value = false;
   if (payload.result.winner && payload.result.cardOptions?.length) {
     gameStore.setCardDraft({ winnerId: payload.result.winner, cards: payload.result.cardOptions });
   }
@@ -318,6 +322,18 @@ function requestRouletteSpin() {
 
 function completePenalty() {
   socketStore.socket?.emit("penalty:complete", {});
+}
+
+function flipResultCard() {
+  if (!gameStore.result) {
+    return;
+  }
+
+  resultCardFlipped.value = !resultCardFlipped.value;
+  resultCardPulse.value = true;
+  window.setTimeout(() => {
+    resultCardPulse.value = false;
+  }, 360);
 }
 
 function leaveRoom() {
@@ -664,9 +680,27 @@ function minesweeperNumberClass(adjacent: number): string {
         {{ roomStore.error }}
       </p>
 
-      <p v-if="gameStore.result">
-        获胜者：{{ gameStore.result.winner ? getPlayerLabel(gameStore.result.winner) : "平局" }} | 分差：{{ gameStore.result.winGap }}
-      </p>
+      <div
+        v-if="gameStore.result"
+        class="result-card-wrap"
+      >
+        <button
+          class="result-card"
+          :class="{ flipped: resultCardFlipped, pulse: resultCardPulse }"
+          @click="flipResultCard"
+        >
+          <span class="card-face card-back">结算卡牌 · 点击翻开</span>
+          <span class="card-face card-front">
+            <strong v-if="gameStore.penalty">惩罚任务卡</strong>
+            <strong v-else>{{ gameStore.result.winner ? `${getPlayerLabel(gameStore.result.winner)} 获胜` : "本局平局" }}</strong>
+            <small>分差：{{ gameStore.result.winGap }}</small>
+            <small v-if="gameStore.penalty">{{ gameStore.penalty.name }}</small>
+            <small v-if="gameStore.penalty">{{ gameStore.penalty.description }}</small>
+            <small v-if="gameStore.penalty">时长：{{ gameStore.penalty.duration }} 秒</small>
+            <small v-if="!gameStore.penalty">本局未触发惩罚任务</small>
+          </span>
+        </button>
+      </div>
 
       <PenaltyPopup
         v-if="gameStore.penalty"
@@ -967,6 +1001,61 @@ function minesweeperNumberClass(adjacent: number): string {
   background: rgba(44, 19, 19, 0.62);
 }
 
+.result-card-wrap {
+  perspective: 1000px;
+}
+
+.result-card {
+  position: relative;
+  width: min(320px, 100%);
+  min-height: 108px;
+  border: 0;
+  background: transparent;
+  transform-style: preserve-3d;
+  transition: transform 0.62s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
+  padding: 0;
+}
+
+.result-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.85rem;
+  backface-visibility: hidden;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 0.95rem;
+}
+
+.card-back {
+  border: 1px solid rgba(253, 223, 175, 0.46);
+  background: radial-gradient(circle at 22% 18%, rgba(255, 240, 206, 0.48), rgba(175, 119, 68, 0.38)),
+    linear-gradient(145deg, rgba(255, 250, 235, 0.2), rgba(168, 118, 74, 0.45));
+  color: #fff6e4;
+}
+
+.card-front {
+  transform: rotateY(180deg);
+  border: 1px solid rgba(195, 207, 224, 0.42);
+  background: radial-gradient(circle at 28% 20%, rgba(216, 228, 244, 0.44), rgba(60, 75, 92, 0.36)),
+    linear-gradient(145deg, rgba(205, 213, 223, 0.22), rgba(74, 84, 98, 0.5));
+  color: #f8fcff;
+}
+
+.card-front strong {
+  font-size: 1rem;
+}
+
+.card-front small {
+  opacity: 0.9;
+}
+
 .eyebrow {
   text-transform: uppercase;
   font-size: 0.72rem;
@@ -997,6 +1086,10 @@ function minesweeperNumberClass(adjacent: number): string {
   animation: shake 0.36s ease-in-out;
 }
 
+.result-card.pulse {
+  animation: heartbeat 0.36s ease-in-out;
+}
+
 @keyframes shake {
   0%,
   100% {
@@ -1013,6 +1106,21 @@ function minesweeperNumberClass(adjacent: number): string {
   }
   80% {
     transform: translateX(2px);
+  }
+}
+
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.04);
+  }
+  70% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 </style>
