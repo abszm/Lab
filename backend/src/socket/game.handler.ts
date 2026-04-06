@@ -66,6 +66,15 @@ function getRouletteState(roomCode: string): RouletteRuntime {
   return runtime;
 }
 
+function ensureRouletteGameOrEmitError(socket: Socket, deps: Dependencies, roomCode: string): boolean {
+  const room = deps.store.getRoom(roomCode);
+  if (!room || room.gameId !== "drinking-roulette") {
+    socket.emit("room:error", { code: "ROULETTE_ONLY_GAME", message: "ROULETTE_ONLY_GAME" });
+    return false;
+  }
+  return true;
+}
+
 function clearRouletteTimer(roomCode: string): void {
   const timer = rouletteTimers.get(roomCode);
   if (!timer) {
@@ -232,6 +241,10 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       return;
     }
 
+    if (!ensureRouletteGameOrEmitError(socket, deps, session.roomCode)) {
+      return;
+    }
+
     const runtime = getRouletteState(session.roomCode);
     socket.emit("game:roulette:state", {
       angle: runtime.angle,
@@ -249,6 +262,11 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
     const room = deps.store.getRoom(session.roomCode);
     if (!room || room.players.length < 2) {
       socket.emit("room:error", { code: "ROOM_NOT_READY", message: "ROOM_NOT_READY" });
+      return;
+    }
+
+    if (room.gameId !== "drinking-roulette") {
+      socket.emit("room:error", { code: "ROULETTE_ONLY_GAME", message: "ROULETTE_ONLY_GAME" });
       return;
     }
 

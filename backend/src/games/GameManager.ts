@@ -142,7 +142,7 @@ export class GameManager {
 
     let penalty: Penalty | undefined;
     if (!result.isDraw && result.winner && winGap >= 1) {
-      penalty = this.penaltySystem.pick(winGap, runtime.penaltyHistory);
+      penalty = this.penaltySystem.pick(runtime.gameId, winGap, runtime.penaltyHistory);
       runtime.penaltyHistory.push(penalty);
     }
 
