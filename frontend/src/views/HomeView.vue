@@ -85,6 +85,9 @@ function joinRoom() {
     </p>
     <div class="actions">
       <select v-model="selectedGameId">
+        <option value="drinking-roulette">
+          喝酒转盘（新）
+        </option>
         <option value="gomoku-duel">
           五子棋（新）
         </option>

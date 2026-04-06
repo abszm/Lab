@@ -366,7 +366,11 @@ const gameId = computed(() => roomStore.room?.gameId ?? "rock-paper-scissors");
 const isRps = computed(() => gameId.value === "rock-paper-scissors");
 const isMinesweeper = computed(() => gameId.value === "minesweeper-duel");
 const isGomoku = computed(() => gameId.value === "gomoku-duel");
+const isRoulette = computed(() => gameId.value === "drinking-roulette");
 const gameTitle = computed(() => {
+  if (isRoulette.value) {
+    return "喝酒转盘";
+  }
   if (isMinesweeper.value) {
     return "双人扫雷";
   }
@@ -538,7 +542,10 @@ function minesweeperNumberClass(adjacent: number): string {
         </div>
       </div>
 
-      <div class="roulette-shell">
+      <div
+        v-if="isRoulette"
+        class="roulette-shell"
+      >
         <p class="hint">喝酒转盘（中场）</p>
         <div class="roulette-wrap">
           <div class="roulette-pointer"></div>
