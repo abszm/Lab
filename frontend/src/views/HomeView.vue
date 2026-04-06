@@ -85,6 +85,9 @@ function joinRoom() {
     </p>
     <div class="actions">
       <select v-model="selectedGameId">
+        <option value="rock-paper-scissors">
+          石头剪刀布
+        </option>
         <option value="drinking-roulette">
           喝酒转盘（新）
         </option>
@@ -93,9 +96,6 @@ function joinRoom() {
         </option>
         <option value="minesweeper-duel">
           双人扫雷
-        </option>
-        <option value="rock-paper-scissors">
-          石头剪刀布
         </option>
       </select>
       <NeonButton @click="createRoom">
