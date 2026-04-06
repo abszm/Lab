@@ -163,14 +163,19 @@ describe("Socket integration", () => {
 
     host.emit("game:move", { move: { action: "rock" } });
     const resultEvent = waitEvent<{ result: { winner: string | null; winGap: number } }>(host, "game:result");
+    const cardDraftOnHost = waitEvent<{ winnerId: string; loserId: string; cards: Array<{ id: string }> }>(host, "game:card:draft");
     const penaltyEvent = waitEvent<{ penalty: { id: string } }>(host, "penalty:trigger");
     guest.emit("game:move", { move: { action: "scissors" } });
 
     const result = await resultEvent;
+    const draft = await cardDraftOnHost;
+    guest.emit("game:card:pick", { cardId: draft.cards[0].id });
     const penalty = await penaltyEvent;
 
     expect(result.result.winner).toBe("p1");
     expect(result.result.winGap).toBeGreaterThanOrEqual(1);
+    expect(draft.loserId).toBe("p2");
+    expect(draft.cards.length).toBe(5);
     expect(penalty.penalty.id).toBeTruthy();
   });
 

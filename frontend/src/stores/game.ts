@@ -25,10 +25,11 @@ export interface RewardCardOption {
 
 export interface RevealedCard {
   id: string;
-  cellId: string;
   level: 1 | 2 | 3 | 4;
   title: string;
   description: string;
+  duration: number;
+  type: "action" | "verbal" | "visual" | "physical";
 }
 
 export interface GameState {
@@ -58,11 +59,11 @@ export const useGameStore = defineStore("game", {
     setResult(payload: GameResult) {
       this.result = payload;
     },
-    setCardDraft(payload: { winnerId: string; cards: RewardCardOption[] }) {
+    setCardDraft(payload: { winnerId: string; loserId: string; cards: RewardCardOption[] }) {
       this.cardWinnerId = payload.winnerId;
+      this.cardLoserId = payload.loserId;
       this.cardDraft = payload.cards;
       this.cardReveal = null;
-      this.cardLoserId = "";
       this.cardAcknowledgedBy = "";
     },
     setCardReveal(payload: { winnerId: string; loserId: string; card: RevealedCard }) {

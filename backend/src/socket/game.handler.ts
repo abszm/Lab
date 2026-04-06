@@ -2,7 +2,7 @@ import type { Server, Socket } from "socket.io";
 import { GameManager } from "../games/GameManager.js";
 import { InMemoryStore } from "../rooms/inMemoryStore.js";
 import type { Penalty, RewardCardOption } from "../types/index.js";
-import { GOMOKU_TASK_POOL } from "../games/gomokuTaskPool.js";
+import { GAME_PENALTY_DATA } from "../penalty/data.js";
 
 interface Dependencies {
   io: Server;
@@ -16,12 +16,10 @@ const restartRequests = new Map<string, string>();
 
 interface PendingCardReveal {
   winnerId: string;
+  loserId: string;
   options: Array<{
     id: string;
-    cellId: string;
-    level: 1 | 2 | 3 | 4;
-    title: string;
-    description: string;
+    penalty: Penalty;
   }>;
 }
 
@@ -30,10 +28,11 @@ interface RevealedCardState {
   loserId: string;
   card: {
     id: string;
-    cellId: string;
     level: 1 | 2 | 3 | 4;
     title: string;
     description: string;
+    duration: number;
+    type: Penalty["type"];
   };
 }
 
@@ -126,32 +125,30 @@ function shuffleArray<T>(items: T[]): T[] {
   return copy;
 }
 
-function buildRandomCardDraft(roomCode: string, deps: Dependencies): PendingCardReveal | null {
-  const room = deps.store.getRoom(roomCode);
-  if (!room) {
+function buildPenaltyCardDraft(gameId: string, winnerId: string, loserId: string, winGap: number): PendingCardReveal | null {
+  const levels = GAME_PENALTY_DATA[gameId];
+  if (!levels || levels.length === 0) {
     return null;
   }
 
-  const state = deps.gameManager.getRoomGameState(roomCode);
-  const board = state?.board as { winner?: string | null } | undefined;
-  const winnerId = board?.winner;
-  if (!winnerId) {
+  const level = levels.find((item) => winGap >= item.minGap && winGap <= item.maxGap) ?? levels[levels.length - 1];
+  const basePool = level.items.length > 0 ? level.items : levels.flatMap((item) => item.items);
+  if (basePool.length === 0) {
     return null;
   }
 
-  const selectedTasks = shuffleArray(GOMOKU_TASK_POOL).slice(0, 5);
-  const mapped = selectedTasks.map((task, index) => {
+  const shuffled = shuffleArray(basePool);
+  const mapped = Array.from({ length: 5 }, (_, index) => {
+    const selected = shuffled[index % shuffled.length];
     return {
-      id: `card-${index + 1}-${task.id}`,
-      cellId: task.cellId,
-      level: task.level,
-      title: `强化：${task.title}`,
-      description: `${task.description}（随机盲选）`
+      id: `penalty-card-${index + 1}-${selected.id}`,
+      penalty: selected
     };
   });
 
   return {
     winnerId,
+    loserId,
     options: mapped
   };
 }
@@ -188,26 +185,40 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
           deps.io.to(session.roomCode).emit("room:state", { room });
         }
 
-        if (outcome.result.winner && room?.gameId === "gomoku-duel") {
-          const pending = buildRandomCardDraft(session.roomCode, deps);
+        const loserId = room?.players.find((player) => player.id !== outcome.result?.winner)?.id;
+        const shouldUsePenaltyCards = Boolean(
+          room
+            && room.gameId !== "drinking-roulette"
+            && outcome.result.winner
+            && !outcome.result.isDraw
+            && loserId
+        );
+
+        if (shouldUsePenaltyCards) {
+          const pending = buildPenaltyCardDraft(room!.gameId, outcome.result.winner!, loserId!, outcome.result.winGap);
           if (pending) {
             const cardOptions: RewardCardOption[] = pending.options.map((item) => ({
               id: item.id,
-              cellId: item.cellId,
-              level: item.level,
-              displayName: `盲选卡牌 ${item.id.split("-")[1]}`
+              cellId: "",
+              level: item.penalty.level,
+              displayName: `盲选卡牌 ${item.id.split("-")[2]}`
             }));
 
             outcome.result.cardOptions = cardOptions;
             pendingCardReveals.set(session.roomCode, pending);
             deps.io.to(session.roomCode).emit("game:card:draft", {
               winnerId: pending.winnerId,
+              loserId: pending.loserId,
               cards: cardOptions
             });
           }
         }
 
         deps.io.to(session.roomCode).emit("game:result", { result: outcome.result });
+
+        if (shouldUsePenaltyCards) {
+          return;
+        }
       }
       if (outcome.penalty) {
         setActivePenalty(deps.io, session.roomCode, outcome.penalty);
@@ -388,8 +399,8 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       return;
     }
 
-    if (pending.winnerId !== session.playerId) {
-      socket.emit("room:error", { code: "ONLY_WINNER_CAN_PICK_CARD", message: "ONLY_WINNER_CAN_PICK_CARD" });
+    if (pending.loserId !== session.playerId) {
+      socket.emit("room:error", { code: "ONLY_LOSER_CAN_PICK_CARD", message: "ONLY_LOSER_CAN_PICK_CARD" });
       return;
     }
 
@@ -399,29 +410,34 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       return;
     }
 
-    const room = deps.store.getRoom(session.roomCode);
-    if (!room) {
-      socket.emit("room:error", { code: "ROOM_NOT_FOUND", message: "ROOM_NOT_FOUND" });
-      return;
-    }
-
-    const loserId = room.players.find((player) => player.id !== session.playerId)?.id;
-    if (!loserId) {
-      socket.emit("room:error", { code: "LOSER_NOT_FOUND", message: "LOSER_NOT_FOUND" });
-      return;
-    }
-
     revealedCards.set(session.roomCode, {
-      winnerId: session.playerId,
-      loserId,
-      card: selected
+      winnerId: pending.winnerId,
+      loserId: pending.loserId,
+      card: {
+        id: selected.id,
+        level: selected.penalty.level,
+        title: selected.penalty.name,
+        description: selected.penalty.description,
+        duration: selected.penalty.duration,
+        type: selected.penalty.type
+      }
     });
     pendingCardReveals.delete(session.roomCode);
 
+    setActivePenalty(deps.io, session.roomCode, selected.penalty);
+    deps.io.to(session.roomCode).emit("penalty:trigger", { penalty: selected.penalty });
+
     deps.io.to(session.roomCode).emit("game:card:revealed", {
-      winnerId: session.playerId,
-      loserId,
-      card: selected
+      winnerId: pending.winnerId,
+      loserId: pending.loserId,
+      card: {
+        id: selected.id,
+        level: selected.penalty.level,
+        title: selected.penalty.name,
+        description: selected.penalty.description,
+        duration: selected.penalty.duration,
+        type: selected.penalty.type
+      }
     });
   });
 
