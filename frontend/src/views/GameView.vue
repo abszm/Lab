@@ -90,22 +90,13 @@ const rouletteBackground = computed(() => {
   }
 
   return `conic-gradient(${rouletteSectors.value
-    .map((_, i) => {
+    .map((sectorColor, i) => {
       const from = i * rouletteSectorAngle.value;
       const to = (i + 1) * rouletteSectorAngle.value;
-      const color = i % 2 === 0 ? "#1e293b" : "#334155";
-      return `${color} ${from}deg ${to}deg`;
+      return `${sectorColor} ${from}deg ${to}deg`;
     })
     .join(",")})`;
 });
-
-function rouletteLabelStyle(index: number): Record<string, string> {
-  const base = rouletteSectorAngle.value || 1;
-  const rotate = index * base + base / 2;
-  return {
-    transform: `translateX(-50%) rotate(${rotate}deg)`
-  };
-}
 
 function getPlayerLabel(playerId: string): string {
   const room = roomStore.room;
@@ -571,16 +562,7 @@ function minesweeperNumberClass(adjacent: number): string {
               transitionDuration: `${rouletteDurationMs}ms`,
               background: rouletteBackground
             }"
-          >
-            <div
-              v-for="(item, index) in rouletteSectors"
-              :key="`${item}-${index}`"
-              class="roulette-label"
-              :style="rouletteLabelStyle(index)"
-            >
-              {{ item }}
-            </div>
-          </div>
+          />
         </div>
         <div class="actions">
           <NeonButton
@@ -946,15 +928,7 @@ function minesweeperNumberClass(adjacent: number): string {
 }
 
 .roulette-label {
-  position: absolute;
-  left: 50%;
-  top: 8px;
-  transform-origin: 50% 142px;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-  white-space: nowrap;
+  display: none;
 }
 
 .minesweeper .hint {
