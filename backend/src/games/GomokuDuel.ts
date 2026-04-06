@@ -1,6 +1,5 @@
 import type { GamePlugin } from "./GamePlugin.js";
 import type { GameMove, GameResult, GameState, RewardCardOption } from "../types/index.js";
-import { GOMOKU_TASK_POOL_BY_CELL } from "./gomokuTaskPool.js";
 
 const BOARD_SIZE = 15;
 const WIN_LENGTH = 5;
@@ -49,16 +48,15 @@ function createBoard(): GomokuBoard {
   for (let row = 0; row < BOARD_SIZE; row += 1) {
     for (let col = 0; col < BOARD_SIZE; col += 1) {
       const id = `${row}-${col}`;
-      const task = GOMOKU_TASK_POOL_BY_CELL.get(id);
       cells.push({
         id,
         row,
         col,
         stone: null,
-        taskId: task?.id ?? "",
-        taskLevel: task?.level ?? 1,
-        taskTitle: task?.title ?? "占位任务",
-        taskDescription: task?.description ?? "待填写任务文案"
+        taskId: "",
+        taskLevel: 1,
+        taskTitle: "盲选惩罚卡",
+        taskDescription: "失败方从盲选卡中抽取任务"
       });
     }
   }

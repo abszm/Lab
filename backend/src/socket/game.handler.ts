@@ -133,7 +133,7 @@ function buildPenaltyCardDraft(gameId: string, winnerId: string, loserId: string
   }
 
   let basePool: Penalty[] = [];
-  if (gameId === "minesweeper-duel") {
+  if (gameId === "minesweeper-duel" || gameId === "gomoku-duel") {
     basePool = levels.flatMap((item) => item.items);
   } else {
     const level = levels.find((item) => winGap >= item.minGap && winGap <= item.maxGap) ?? levels[levels.length - 1];
