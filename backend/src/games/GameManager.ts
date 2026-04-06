@@ -9,6 +9,22 @@ interface RuntimeGame {
   penaltyHistory: Penalty[];
 }
 
+function initializeCurrentPlayerIfPresent(state: GameState): void {
+  if (!state.players.length) {
+    return;
+  }
+
+  const board = state.board as { currentPlayerId?: string } | null;
+  if (!board || typeof board !== "object" || !("currentPlayerId" in board)) {
+    return;
+  }
+
+  if (!board.currentPlayerId) {
+    const index = Math.floor(Math.random() * state.players.length);
+    board.currentPlayerId = state.players[index];
+  }
+}
+
 export class GameManager {
   private readonly games = new Map<string, RuntimeGame>();
   private readonly penaltySystem = new PenaltySystem();
@@ -35,6 +51,7 @@ export class GameManager {
 
     const state = plugin.initBoard();
     state.players = players;
+    initializeCurrentPlayerIfPresent(state);
     this.games.set(roomCode, {
       gameId,
       state,
@@ -52,6 +69,7 @@ export class GameManager {
 
     const state = plugin.initBoard();
     state.players = players;
+    initializeCurrentPlayerIfPresent(state);
     this.games.set(roomCode, {
       gameId,
       state,
@@ -90,7 +108,8 @@ export class GameManager {
     }
 
     if (!plugin.validateMove(move, runtime.state)) {
-      throw new Error("INVALID_MOVE");
+      const reason = plugin.getInvalidMoveReason?.(move, runtime.state) ?? "INVALID_MOVE";
+      throw new Error(reason);
     }
 
     if (!runtime.state.players.includes(move.playerId)) {

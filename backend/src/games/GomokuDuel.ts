@@ -95,6 +95,38 @@ function parseMove(action: string): { row: number; col: number } | null {
   return { row, col };
 }
 
+function getMoveInvalidReason(move: GameMove, state: GameState): string | null {
+  if (state.phase !== "waiting") {
+    return "GAME_ALREADY_FINISHED";
+  }
+
+  const board = getBoard(state);
+  if (board.winner) {
+    return "GAME_ALREADY_FINISHED";
+  }
+
+  const currentPlayerId = getCurrentPlayerId(state, board);
+  if (!currentPlayerId || currentPlayerId !== move.playerId) {
+    return "NOT_YOUR_TURN";
+  }
+
+  const parsed = parseMove(move.action);
+  if (!parsed) {
+    return "INVALID_MOVE";
+  }
+
+  const target = board.cells.find((cell) => cell.row === parsed.row && cell.col === parsed.col);
+  if (!target) {
+    return "INVALID_MOVE";
+  }
+
+  if (target.stone) {
+    return "CELL_OCCUPIED";
+  }
+
+  return null;
+}
+
 function cellId(row: number, col: number): string {
   return `${row}-${col}`;
 }
@@ -177,27 +209,10 @@ export const GomokuDuel: GamePlugin = {
     phase: "waiting"
   }),
   validateMove: (move: GameMove, state: GameState): boolean => {
-    if (state.phase !== "waiting") {
-      return false;
-    }
-
-    const board = getBoard(state);
-    if (board.winner) {
-      return false;
-    }
-
-    const currentPlayerId = getCurrentPlayerId(state, board);
-    if (!currentPlayerId || currentPlayerId !== move.playerId) {
-      return false;
-    }
-
-    const parsed = parseMove(move.action);
-    if (!parsed) {
-      return false;
-    }
-
-    const target = board.cells.find((cell) => cell.row === parsed.row && cell.col === parsed.col);
-    return Boolean(target && !target.stone);
+    return getMoveInvalidReason(move, state) === null;
+  },
+  getInvalidMoveReason: (move: GameMove, state: GameState): string => {
+    return getMoveInvalidReason(move, state) ?? "INVALID_MOVE";
   },
   calculateResult: (state: GameState): GameResult => {
     const board = getBoard(state);

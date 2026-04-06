@@ -126,7 +126,7 @@ describe("GameManager", () => {
     try {
       manager.applyMove("ROOM03", { playerId: starter, action: "0-0", timestamp: Date.now() });
     } catch (error) {
-      expect((error as Error).message).toBe("INVALID_MOVE");
+      expect((error as Error).message).toBe("NOT_YOUR_TURN");
       starter = "p2";
       opponent = "p1";
       manager.applyMove("ROOM03", { playerId: starter, action: "0-0", timestamp: Date.now() });
@@ -152,5 +152,44 @@ describe("GameManager", () => {
     const finalBoard = outcome.state.board as { winner: string | null; winningLine: string[] };
     expect(finalBoard.winner).toBe(starter);
     expect(finalBoard.winningLine).toHaveLength(5);
+  });
+
+  it("returns NOT_YOUR_TURN when gomoku player moves out of turn", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOM04", "gomoku-duel", ["p1", "p2"]);
+
+    const state = manager.getRoomGameState("ROOM04");
+    const board = state?.board as { currentPlayerId: string };
+    const starter = board.currentPlayerId;
+    const opponent = starter === "p1" ? "p2" : "p1";
+
+    manager.applyMove("ROOM04", { playerId: starter, action: "0-0", timestamp: Date.now() });
+
+    expect(() => {
+      manager.applyMove("ROOM04", { playerId: starter, action: "0-1", timestamp: Date.now() });
+    }).toThrowError("NOT_YOUR_TURN");
+
+    expect(() => {
+      manager.applyMove("ROOM04", { playerId: opponent, action: "0-1", timestamp: Date.now() });
+    }).not.toThrow();
+  });
+
+  it("returns CELL_OCCUPIED when gomoku cell is already used", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOM05", "gomoku-duel", ["p1", "p2"]);
+
+    const state = manager.getRoomGameState("ROOM05");
+    const board = state?.board as { currentPlayerId: string };
+    const starter = board.currentPlayerId;
+
+    manager.applyMove("ROOM05", { playerId: starter, action: "0-0", timestamp: Date.now() });
+
+    const nextState = manager.getRoomGameState("ROOM05");
+    const nextBoard = nextState?.board as { currentPlayerId: string };
+    const currentPlayer = nextBoard.currentPlayerId;
+
+    expect(() => {
+      manager.applyMove("ROOM05", { playerId: currentPlayer, action: "0-0", timestamp: Date.now() });
+    }).toThrowError("CELL_OCCUPIED");
   });
 });
