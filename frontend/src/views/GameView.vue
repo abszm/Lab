@@ -48,6 +48,7 @@ interface GomokuBoard {
 
 const restartRequesterId = ref("");
 const restartPending = ref(false);
+const gomokuMovePending = ref(false);
 
 function getPlayerLabel(playerId: string): string {
   const room = roomStore.room;
@@ -85,6 +86,7 @@ function handleGameResult(payload: { result: GameResult }) {
 
 function handleGameState(payload: { state: GameState }) {
   gameStore.setState(payload.state);
+  gomokuMovePending.value = false;
 }
 
 function handlePenaltyTrigger(payload: { penalty: Penalty }) {
@@ -142,6 +144,7 @@ function handleRestartResult(payload: { accepted: boolean; responderId: string }
 
 function handleRoomError(payload: { message: string }) {
   roomStore.setError(normalizeError(payload.message));
+  gomokuMovePending.value = false;
 }
 
 function handleRoomClosed(payload: { reason?: string }) {
@@ -237,9 +240,10 @@ function revealCell(cellId: string) {
 }
 
 function placeStone(cellId: string) {
-  if (!isMyTurnInGomoku.value || gameStore.penaltyActive) {
+  if (!isMyTurnInGomoku.value || gameStore.penaltyActive || gomokuMovePending.value) {
     return;
   }
+  gomokuMovePending.value = true;
   move(cellId);
 }
 

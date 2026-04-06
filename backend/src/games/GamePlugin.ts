@@ -6,6 +6,7 @@ export interface GamePlugin {
   getRequiredPlayers(): number;
   initBoard(): GameState;
   validateMove(move: GameMove, state: GameState): boolean;
+  getInvalidMoveReason?(move: GameMove, state: GameState): string;
   calculateResult(state: GameState): GameResult;
   getValidMoves(state: GameState, playerId: string): string[];
   toClientState?(state: GameState): GameState;
