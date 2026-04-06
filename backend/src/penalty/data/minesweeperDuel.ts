@@ -1,32 +1,43 @@
 import type { Penalty, PenaltyLevel, PenaltyType } from "../../types/index.js";
+import taskSeedsJson from "./minesweeperTasks.json" with { type: "json" };
 
-const VERBS = ["复盘", "模仿", "描述", "完成", "坚持", "朗读", "演示", "挑战", "执行", "回应"];
-const OBJECTS = ["安全格", "雷区", "倒计时", "路线", "策略", "手势", "口令", "节奏", "观察", "反应"];
-
-function resolveType(index: number): PenaltyType {
-  const types: PenaltyType[] = ["verbal", "action", "visual", "physical"];
-  return types[index % types.length];
+interface MinesweeperTaskSeed {
+  text: string;
+  duration: number;
+  type: PenaltyType;
 }
 
-function buildMinesweeperTaskPool(): Penalty[] {
-  const tasks: Penalty[] = [];
+const taskSeeds = taskSeedsJson as MinesweeperTaskSeed[];
 
-  for (let i = 0; i < VERBS.length; i += 1) {
-    for (let j = 0; j < OBJECTS.length; j += 1) {
-      const serial = i * OBJECTS.length + j + 1;
-      const code = String(serial).padStart(3, "0");
-      tasks.push({
+function buildMinesweeperTaskPool(): Penalty[] {
+  const pool = taskSeeds
+    .map((seed, index) => {
+      const code = String(index + 1).padStart(3, "0");
+      return {
         id: `MS-TASK-${code}`,
         level: 1,
         name: `扫雷任务 ${code}`,
-        description: `失败方${VERBS[i]}一次${OBJECTS[j]}挑战。`,
-        duration: 15 + (serial % 8) * 5,
-        type: resolveType(serial)
-      });
-    }
+        description: seed.text.trim(),
+        duration: seed.duration,
+        type: seed.type
+      } satisfies Penalty;
+    })
+    .filter((task) => task.description.length > 0 && task.duration > 0);
+
+  if (pool.length > 0) {
+    return pool;
   }
 
-  return tasks;
+  return [
+    {
+      id: "MS-TASK-001",
+      level: 1,
+      name: "扫雷任务 001",
+      description: "失败方完成一次扫雷复盘。",
+      duration: 15,
+      type: "verbal"
+    }
+  ];
 }
 
 export const MINESWEEPER_DUEL_PENALTIES: PenaltyLevel[] = [
