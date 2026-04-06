@@ -26,9 +26,23 @@ const choiceLabels: Record<string, string> = {
 
 interface MinesweeperCell {
   id: string;
-  label: string;
-  revealedBy: string | null;
+  row: number;
+  col: number;
+  revealed: boolean;
   exploded: boolean;
+  adjacent: number;
+  isMine: boolean;
+  revealedBy: string | null;
+}
+
+interface MinesweeperBoard {
+  size: number;
+  mineCount: number;
+  currentPlayerId: string;
+  winner: string | null;
+  gameOver: boolean;
+  revealedSafeCount: number;
+  cells: MinesweeperCell[];
 }
 
 interface GomokuCell {
@@ -87,6 +101,7 @@ function handleGameResult(payload: { result: GameResult }) {
 function handleGameState(payload: { state: GameState }) {
   gameStore.setState(payload.state);
   gomokuMovePending.value = false;
+  minesweeperMovePending.value = false;
 }
 
 function handlePenaltyTrigger(payload: { penalty: Penalty }) {
@@ -145,6 +160,7 @@ function handleRestartResult(payload: { accepted: boolean; responderId: string }
 function handleRoomError(payload: { message: string }) {
   roomStore.setError(normalizeError(payload.message));
   gomokuMovePending.value = false;
+  minesweeperMovePending.value = false;
 }
 
 function handleRoomClosed(payload: { reason?: string }) {
@@ -233,9 +249,10 @@ function leaveRoom() {
 }
 
 function revealCell(cellId: string) {
-  if (gameStore.penaltyActive) {
+  if (gameStore.penaltyActive || !isMyTurnInMinesweeper.value || minesweeperMovePending.value) {
     return;
   }
+  minesweeperMovePending.value = true;
   move(cellId);
 }
 
@@ -280,8 +297,26 @@ const gameTitle = computed(() => {
 });
 
 const minesweeperCells = computed(() => {
-  const board = gameStore.state?.board as { cells?: MinesweeperCell[] } | undefined;
+  const board = gameStore.state?.board as MinesweeperBoard | undefined;
   return board?.cells ?? [];
+});
+const minesweeperBoard = computed(() => gameStore.state?.board as MinesweeperBoard | undefined);
+const minesweeperMovePending = ref(false);
+const isMyTurnInMinesweeper = computed(() => {
+  const current = minesweeperBoard.value?.currentPlayerId;
+  return Boolean(current && current === socketStore.playerId);
+});
+const minesweeperStatusText = computed(() => {
+  const board = minesweeperBoard.value;
+  if (!board) {
+    return "等待棋盘同步...";
+  }
+
+  if (board.gameOver) {
+    return board.winner ? `胜者：${getPlayerLabel(board.winner)}` : "本局结束";
+  }
+
+  return `当前操作：${getPlayerLabel(board.currentPlayerId)}`;
 });
 
 const gomokuBoard = computed(() => gameStore.state?.board as GomokuBoard | undefined);
@@ -343,26 +378,28 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
         v-else-if="isMinesweeper"
         class="minesweeper"
       >
-        <p class="hint">每回合双方各点开一个格子，踩雷会给对手加分。</p>
+        <p class="hint">经典扫雷模式：踩雷即输，清空安全格即胜。</p>
+        <p class="hint">{{ minesweeperStatusText }}</p>
         <div class="mine-grid">
           <button
             v-for="cell in minesweeperCells"
             :key="cell.id"
             class="cell"
             :class="{
-              revealed: Boolean(cell.revealedBy),
+              revealed: cell.revealed,
               exploded: cell.exploded,
-              safe: Boolean(cell.revealedBy) && !cell.exploded
+              safe: cell.revealed && !cell.exploded
             }"
-            :disabled="gameStore.penaltyActive || Boolean(cell.revealedBy)"
+            :disabled="gameStore.penaltyActive || cell.revealed || !isMyTurnInMinesweeper || Boolean(minesweeperBoard?.gameOver)"
             @click="revealCell(cell.id)"
           >
-            <span v-if="!cell.revealedBy">?</span>
-            <span v-else-if="cell.exploded">雷</span>
-            <span v-else>安全</span>
+            <span v-if="!cell.revealed">■</span>
+            <span v-else-if="cell.isMine">雷</span>
+            <span v-else-if="cell.adjacent === 0"></span>
+            <span v-else>{{ cell.adjacent }}</span>
           </button>
         </div>
-        <p class="hint">当前可选格子：{{ minesweeperCells.filter((cell) => !cell.revealedBy).length }}</p>
+        <p class="hint">剩余未翻开：{{ minesweeperCells.filter((cell) => !cell.revealed).length }}</p>
       </div>
 
       <div

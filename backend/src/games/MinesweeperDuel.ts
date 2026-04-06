@@ -1,21 +1,61 @@
 import type { GamePlugin } from "./GamePlugin.js";
 import type { GameMove, GameResult, GameState } from "../types/index.js";
 
-const BOARD_SIZE = 4;
+const BOARD_SIZE = 9;
 const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
-const MINE_COUNT = 4;
+const MINE_COUNT = 10;
 
 interface MinesweeperCell {
   id: string;
-  label: string;
+  row: number;
+  col: number;
   hasMine: boolean;
-  revealedBy: string | null;
+  adjacent: number;
+  revealed: boolean;
   exploded: boolean;
+  revealedBy: string | null;
 }
 
 interface MinesweeperBoard {
   size: number;
+  mineCount: number;
   cells: MinesweeperCell[];
+  currentPlayerId: string;
+  winner: string | null;
+  gameOver: boolean;
+  revealedSafeCount: number;
+}
+
+function parseMove(action: string): { row: number; col: number } | null {
+  const match = action.trim().match(/^(\d+)-(\d+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const row = Number(match[1]);
+  const col = Number(match[2]);
+  if (Number.isNaN(row) || Number.isNaN(col) || row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+    return null;
+  }
+
+  return { row, col };
+}
+
+function cellId(row: number, col: number): string {
+  return `${row}-${col}`;
+}
+
+function neighborOffsets(): Array<[number, number]> {
+  return [
+    [-1, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, -1],
+    [0, 1],
+    [1, -1],
+    [1, 0],
+    [1, 1]
+  ];
 }
 
 function createBoard(): MinesweeperBoard {
@@ -28,136 +68,226 @@ function createBoard(): MinesweeperBoard {
   for (let row = 0; row < BOARD_SIZE; row += 1) {
     for (let col = 0; col < BOARD_SIZE; col += 1) {
       const index = row * BOARD_SIZE + col;
-      const id = `${row}-${col}`;
       cells.push({
-        id,
-        label: `${row + 1}-${col + 1}`,
+        id: cellId(row, col),
+        row,
+        col,
         hasMine: mineIndexSet.has(index),
-        revealedBy: null,
-        exploded: false
+        adjacent: 0,
+        revealed: false,
+        exploded: false,
+        revealedBy: null
       });
     }
   }
 
-  return { size: BOARD_SIZE, cells };
+  const byId = new Map<string, MinesweeperCell>(cells.map((cell) => [cell.id, cell]));
+  for (const cell of cells) {
+    if (cell.hasMine) {
+      continue;
+    }
+
+    let count = 0;
+    for (const [dr, dc] of neighborOffsets()) {
+      const candidate = byId.get(cellId(cell.row + dr, cell.col + dc));
+      if (candidate?.hasMine) {
+        count += 1;
+      }
+    }
+    cell.adjacent = count;
+  }
+
+  return {
+    size: BOARD_SIZE,
+    mineCount: MINE_COUNT,
+    cells,
+    currentPlayerId: "",
+    winner: null,
+    gameOver: false,
+    revealedSafeCount: 0
+  };
 }
 
 function getBoard(state: GameState): MinesweeperBoard {
   return state.board as MinesweeperBoard;
 }
 
-function parseAction(action: string): string {
-  return action.trim();
+function ensureCurrentPlayer(state: GameState, board: MinesweeperBoard): string {
+  if (!board.currentPlayerId && state.players.length > 0) {
+    board.currentPlayerId = state.players[Math.floor(Math.random() * state.players.length)];
+  }
+  return board.currentPlayerId;
 }
 
-function resolveRoundScore(
-  state: GameState,
-  board: MinesweeperBoard,
-  playerA: string,
-  playerB: string
-): { winner: string | null; isDraw: boolean; scores: Record<string, number>; winGap: number } {
-  const roundScores: Record<string, number> = {
-    [playerA]: 0,
-    [playerB]: 0
-  };
+function getInvalidMoveReason(move: GameMove, state: GameState): string | null {
+  if (state.phase !== "waiting") {
+    return "GAME_ALREADY_FINISHED";
+  }
 
-  for (const [playerId, action] of Object.entries(state.moves)) {
-    const pickedCell = board.cells.find((cell) => cell.id === action);
-    if (!pickedCell || pickedCell.revealedBy) {
+  const board = getBoard(state);
+  if (board.gameOver) {
+    return "GAME_ALREADY_FINISHED";
+  }
+
+  const currentPlayerId = ensureCurrentPlayer(state, board);
+  if (!currentPlayerId || currentPlayerId !== move.playerId) {
+    return "NOT_YOUR_TURN";
+  }
+
+  const parsed = parseMove(move.action);
+  if (!parsed) {
+    return "INVALID_MOVE";
+  }
+
+  const target = board.cells.find((cell) => cell.row === parsed.row && cell.col === parsed.col);
+  if (!target) {
+    return "INVALID_MOVE";
+  }
+
+  if (target.revealed) {
+    return "CELL_OCCUPIED";
+  }
+
+  return null;
+}
+
+function revealSafeArea(board: MinesweeperBoard, start: MinesweeperCell, playerId: string): number {
+  const byId = new Map<string, MinesweeperCell>(board.cells.map((cell) => [cell.id, cell]));
+  const queue: MinesweeperCell[] = [start];
+  let revealed = 0;
+
+  while (queue.length > 0) {
+    const cell = queue.shift();
+    if (!cell || cell.revealed) {
       continue;
     }
 
-    pickedCell.revealedBy = playerId;
-    pickedCell.exploded = pickedCell.hasMine;
+    if (cell.hasMine) {
+      continue;
+    }
 
-    const opponent = playerId === playerA ? playerB : playerA;
-    if (pickedCell.hasMine) {
-      roundScores[opponent] += 1;
-    } else {
-      roundScores[playerId] += 1;
+    cell.revealed = true;
+    cell.revealedBy = playerId;
+    revealed += 1;
+
+    if (cell.adjacent !== 0) {
+      continue;
+    }
+
+    for (const [dr, dc] of neighborOffsets()) {
+      const candidate = byId.get(cellId(cell.row + dr, cell.col + dc));
+      if (!candidate || candidate.revealed || candidate.hasMine) {
+        continue;
+      }
+      queue.push(candidate);
     }
   }
 
-  const scoreA = roundScores[playerA];
-  const scoreB = roundScores[playerB];
-  if (scoreA === scoreB) {
-    return {
-      winner: null,
-      isDraw: true,
-      scores: roundScores,
-      winGap: 0
-    };
-  }
-
-  return {
-    winner: scoreA > scoreB ? playerA : playerB,
-    isDraw: false,
-    scores: roundScores,
-    winGap: Math.abs(scoreA - scoreB)
-  };
+  return revealed;
 }
 
 export const MinesweeperDuel: GamePlugin = {
   id: "minesweeper-duel",
   name: "Minesweeper Duel",
-  getRequiredPlayers: () => 2,
+  getRequiredPlayers: () => 1,
   initBoard: (): GameState => ({
     board: createBoard(),
     players: [],
     moves: {},
     phase: "waiting"
   }),
-  validateMove: (move: GameMove, state: GameState): boolean => {
-    if (state.phase !== "waiting") {
-      return false;
-    }
-
-    const action = parseAction(move.action);
-    const board = getBoard(state);
-    const cell = board.cells.find((item) => item.id === action);
-    if (!cell) {
-      return false;
-    }
-
-    if (cell.revealedBy) {
-      return false;
-    }
-
-    const pickedActions = new Set(Object.values(state.moves));
-    return !pickedActions.has(action);
-  },
+  validateMove: (move: GameMove, state: GameState): boolean => getInvalidMoveReason(move, state) === null,
+  getInvalidMoveReason: (move: GameMove, state: GameState): string => getInvalidMoveReason(move, state) ?? "INVALID_MOVE",
   calculateResult: (state: GameState): GameResult => {
-    const playerIds = Object.keys(state.moves);
-    if (playerIds.length < 2) {
-      return { winner: null, isDraw: false, scores: {}, winGap: 0 };
-    }
-
-    const [playerA, playerB] = playerIds;
     const board = getBoard(state);
-    const result = resolveRoundScore(state, board, playerA, playerB);
+    ensureCurrentPlayer(state, board);
 
-    const hiddenCells = board.cells.filter((cell) => !cell.revealedBy);
-    if (hiddenCells.length < 2) {
-      state.board = createBoard();
+    const [playerId, action] = Object.entries(state.moves)[0] ?? [];
+    if (!playerId || !action) {
+      return { winner: null, isDraw: true, scores: {}, winGap: 0 };
     }
 
-    return result;
+    const parsed = parseMove(action);
+    if (!parsed) {
+      return { winner: null, isDraw: true, scores: {}, winGap: 0 };
+    }
+
+    const target = board.cells.find((cell) => cell.row === parsed.row && cell.col === parsed.col);
+    if (!target || target.revealed) {
+      return { winner: null, isDraw: true, scores: {}, winGap: 0 };
+    }
+
+    if (target.hasMine) {
+      target.revealed = true;
+      target.exploded = true;
+      target.revealedBy = playerId;
+      board.gameOver = true;
+
+      const winner = state.players.find((id) => id !== playerId) ?? null;
+      board.winner = winner;
+      return {
+        winner,
+        isDraw: false,
+        scores: winner ? { [winner]: 1, [playerId]: 0 } : {},
+        winGap: winner ? 1 : 0
+      };
+    }
+
+    board.revealedSafeCount += revealSafeArea(board, target, playerId);
+    const safeTotal = BOARD_SIZE * BOARD_SIZE - MINE_COUNT;
+    if (board.revealedSafeCount >= safeTotal) {
+      board.gameOver = true;
+      board.winner = playerId;
+      const loser = state.players.find((id) => id !== playerId) ?? "";
+      return {
+        winner: playerId,
+        isDraw: false,
+        scores: {
+          [playerId]: 1,
+          ...(loser ? { [loser]: 0 } : {})
+        },
+        winGap: 1
+      };
+    }
+
+    board.currentPlayerId = state.players.find((id) => id !== playerId) ?? playerId;
+    return {
+      winner: null,
+      isDraw: true,
+      scores: {},
+      winGap: 0
+    };
   },
   getValidMoves: (state: GameState): string[] => {
     const board = getBoard(state);
-    return board.cells.filter((cell) => !cell.revealedBy).map((cell) => cell.id);
+    if (board.gameOver) {
+      return [];
+    }
+
+    return board.cells.filter((cell) => !cell.revealed).map((cell) => cell.id);
   },
   toClientState: (state: GameState): GameState => {
     const board = getBoard(state);
+    ensureCurrentPlayer(state, board);
+
     return {
       ...state,
       board: {
         size: board.size,
+        mineCount: board.mineCount,
+        currentPlayerId: board.currentPlayerId,
+        winner: board.winner,
+        gameOver: board.gameOver,
+        revealedSafeCount: board.revealedSafeCount,
         cells: board.cells.map((cell) => ({
           id: cell.id,
-          label: cell.label,
+          row: cell.row,
+          col: cell.col,
+          revealed: cell.revealed,
+          exploded: cell.exploded,
+          adjacent: cell.adjacent,
           revealedBy: cell.revealedBy,
-          exploded: cell.exploded
+          isMine: cell.revealed || board.gameOver ? cell.hasMine : false
         }))
       }
     };
