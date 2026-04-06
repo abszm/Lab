@@ -1,0 +1,12 @@
+[
+  { "text": "复盘本局你最冒险的一步", "duration": 20, "type": "verbal" },
+  { "text": "闭眼描述一个你怀疑有雷的区域", "duration": 25, "type": "visual" },
+  { "text": "做一个排雷手势并保持 15 秒", "duration": 15, "type": "physical" },
+  { "text": "用 10 秒说出下一步策略", "duration": 10, "type": "verbal" },
+  { "text": "模仿扫雷音效 8 秒", "duration": 8, "type": "action" },
+  { "text": "快速说出 3 个安全格判断依据", "duration": 18, "type": "verbal" },
+  { "text": "做一次无声倒计时挑战", "duration": 20, "type": "action" },
+  { "text": "保持紧张表情直到倒计时结束", "duration": 15, "type": "physical" },
+  { "text": "说出对手本局最精彩的一步", "duration": 12, "type": "verbal" },
+  { "text": "完成一次模拟点格动作", "duration": 16, "type": "action" }
+]
