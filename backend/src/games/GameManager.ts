@@ -1,12 +1,10 @@
-import type { GameMove, GameResult, GameState, Penalty } from "../types/index.js";
+import type { GameMove, GameResult, GameState } from "../types/index.js";
 import { getGame } from "./registry.js";
-import { PenaltySystem } from "../penalty/PenaltySystem.js";
 
 interface RuntimeGame {
   gameId: string;
   state: GameState;
   scoreBoard: Record<string, number>;
-  penaltyHistory: Penalty[];
 }
 
 function initializeCurrentPlayerIfPresent(state: GameState): void {
@@ -27,7 +25,6 @@ function initializeCurrentPlayerIfPresent(state: GameState): void {
 
 export class GameManager {
   private readonly games = new Map<string, RuntimeGame>();
-  private readonly penaltySystem = new PenaltySystem();
 
   private buildClientState(runtime: RuntimeGame): GameState {
     const plugin = getGame(runtime.gameId);
@@ -55,8 +52,7 @@ export class GameManager {
     this.games.set(roomCode, {
       gameId,
       state,
-      scoreBoard: Object.fromEntries(players.map((id) => [id, 0])),
-      penaltyHistory: []
+      scoreBoard: Object.fromEntries(players.map((id) => [id, 0]))
     });
     return state;
   }
@@ -73,8 +69,7 @@ export class GameManager {
     this.games.set(roomCode, {
       gameId,
       state,
-      scoreBoard: Object.fromEntries(players.map((id) => [id, 0])),
-      penaltyHistory: []
+      scoreBoard: Object.fromEntries(players.map((id) => [id, 0]))
     });
     return state;
   }
@@ -96,7 +91,7 @@ export class GameManager {
     this.games.delete(roomCode);
   }
 
-  applyMove(roomCode: string, move: GameMove): { state: GameState; result?: GameResult; penalty?: Penalty } {
+  applyMove(roomCode: string, move: GameMove): { state: GameState; result?: GameResult } {
     const runtime = this.games.get(roomCode);
     if (!runtime) {
       throw new Error("GAME_NOT_STARTED");
@@ -140,14 +135,8 @@ export class GameManager {
       winGap
     };
 
-    let penalty: Penalty | undefined;
-    if (!result.isDraw && result.winner && winGap >= 1) {
-      penalty = this.penaltySystem.pick(runtime.gameId, winGap, runtime.penaltyHistory);
-      runtime.penaltyHistory.push(penalty);
-    }
-
     runtime.state.moves = {};
     runtime.state.phase = "waiting";
-    return { state: this.buildClientState(runtime), result, penalty };
+    return { state: this.buildClientState(runtime), result };
   }
 }

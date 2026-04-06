@@ -47,7 +47,6 @@ describe("GameManager", () => {
     expect(outcome.result?.winner).toBe("p1");
     expect(outcome.result?.scores.p1).toBe(1);
     expect(outcome.result?.winGap).toBe(1);
-    expect(outcome.penalty).toBeDefined();
     expect(outcome.state.phase).toBe("waiting");
     expect(outcome.state.moves).toEqual({});
   });
@@ -64,7 +63,6 @@ describe("GameManager", () => {
     });
 
     expect(outcome.result?.isDraw).toBe(true);
-    expect(outcome.penalty).toBeUndefined();
   });
 
   it("rejects invalid move", () => {

@@ -1,5 +1,5 @@
 import type { GamePlugin } from "./GamePlugin.js";
-import type { GameMove, GameResult, GameState } from "../types/index.js";
+import type { GameResult, GameState } from "../types/index.js";
 
 interface RouletteBoard {
   mode: "drinking-roulette";
@@ -19,9 +19,9 @@ export const DrinkingRoulette: GamePlugin = {
     moves: {},
     phase: "waiting"
   }),
-  validateMove: (_move: GameMove, _state: GameState): boolean => false,
+  validateMove: (): boolean => false,
   getInvalidMoveReason: () => "INVALID_MOVE",
-  calculateResult: (_state: GameState): GameResult => ({
+  calculateResult: (): GameResult => ({
     winner: null,
     isDraw: true,
     scores: {},

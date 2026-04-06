@@ -227,10 +227,6 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
           return;
         }
       }
-      if (outcome.penalty) {
-        setActivePenalty(deps.io, session.roomCode, outcome.penalty);
-        deps.io.to(session.roomCode).emit("penalty:trigger", { penalty: outcome.penalty });
-      }
     } catch (error) {
       socket.emit("room:error", { code: (error as Error).message, message: (error as Error).message });
     }
