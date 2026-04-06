@@ -132,15 +132,21 @@ function buildPenaltyCardDraft(gameId: string, winnerId: string, loserId: string
     return null;
   }
 
-  const level = levels.find((item) => winGap >= item.minGap && winGap <= item.maxGap) ?? levels[levels.length - 1];
-  const basePool = level.items.length > 0 ? level.items : levels.flatMap((item) => item.items);
+  let basePool: Penalty[] = [];
+  if (gameId === "minesweeper-duel") {
+    basePool = levels.flatMap((item) => item.items);
+  } else {
+    const level = levels.find((item) => winGap >= item.minGap && winGap <= item.maxGap) ?? levels[levels.length - 1];
+    basePool = level.items.length > 0 ? level.items : levels.flatMap((item) => item.items);
+  }
+
   if (basePool.length === 0) {
     return null;
   }
 
   const shuffled = shuffleArray(basePool);
   const mapped = Array.from({ length: 5 }, (_, index) => {
-    const selected = shuffled[index % shuffled.length];
+    const selected = shuffled[index] ?? shuffled[Math.floor(Math.random() * shuffled.length)];
     return {
       id: `penalty-card-${index + 1}-${selected.id}`,
       penalty: selected
@@ -198,11 +204,11 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
         if (shouldUsePenaltyCards) {
           const pending = buildPenaltyCardDraft(room!.gameId, outcome.result.winner!, loserId!, outcome.result.winGap);
           if (pending) {
-            const cardOptions: RewardCardOption[] = pending.options.map((item) => ({
+            const cardOptions: RewardCardOption[] = pending.options.map((item, index) => ({
               id: item.id,
               cellId: "",
               level: item.penalty.level,
-              displayName: `盲选卡牌 ${item.id.split("-")[2]}`
+              displayName: `盲选卡牌 ${index + 1}`
             }));
 
             outcome.result.cardOptions = cardOptions;
