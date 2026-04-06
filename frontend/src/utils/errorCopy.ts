@@ -14,6 +14,7 @@ const ERROR_COPY: Record<string, string> = {
   GAME_ALREADY_FINISHED: "本局已结束，请开始新一局。",
   ROULETTE_SPINNING: "转盘正在旋转，请等待结果。",
   ROULETTE_ONLY_GAME: "喝酒转盘仅在“喝酒转盘”房间中可用。",
+  ONLY_LOSER_CAN_PICK_CARD: "本局仅失败方可以进行盲选。",
   PLAYER_NOT_IN_ROOM: "当前玩家不在该房间中。",
   ALREADY_MOVED: "本回合你已经出招，请等待对手。",
   ROOM_CODE_GENERATION_FAILED: "房间码生成失败，请稍后重试。",

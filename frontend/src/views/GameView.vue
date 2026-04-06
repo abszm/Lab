@@ -157,9 +157,6 @@ function handleGameResult(payload: { result: GameResult }) {
   gameStore.setResult(payload.result);
   resultCardFlipped.value = false;
   resultCardPulse.value = false;
-  if (payload.result.winner && payload.result.cardOptions?.length) {
-    gameStore.setCardDraft({ winnerId: payload.result.winner, cards: payload.result.cardOptions });
-  }
 
   if (isMinesweeper.value && payload.result.winner === socketStore.playerId) {
     minesweeperShake.value = true;
@@ -184,17 +181,17 @@ function handlePenaltyTimeout(payload: { reason?: "completed" | "timeout" }) {
   gameStore.clearPenalty(payload.reason ?? "timeout");
 }
 
-function handleCardDraft(payload: { winnerId: string; cards: GameResult["cardOptions"] }) {
+function handleCardDraft(payload: { winnerId: string; loserId: string; cards: GameResult["cardOptions"] }) {
   if (!payload.cards) {
     return;
   }
-  gameStore.setCardDraft({ winnerId: payload.winnerId, cards: payload.cards });
+  gameStore.setCardDraft({ winnerId: payload.winnerId, loserId: payload.loserId, cards: payload.cards });
 }
 
 function handleCardRevealed(payload: {
   winnerId: string;
   loserId: string;
-  card: { id: string; cellId: string; level: 1 | 2 | 3 | 4; title: string; description: string };
+  card: { id: string; level: 1 | 2 | 3 | 4; title: string; description: string; duration: number; type: "action" | "verbal" | "visual" | "physical" };
 }) {
   gameStore.setCardReveal(payload);
 }
@@ -441,10 +438,10 @@ const gomokuStatusText = computed(() => {
 const showRestartRespondActions = computed(() => {
   return Boolean(restartRequesterId.value) && restartRequesterId.value !== socketStore.playerId;
 });
-const isCardWinner = computed(() => gameStore.cardWinnerId === socketStore.playerId);
 const isCardLoser = computed(() => gameStore.cardLoserId === socketStore.playerId);
-const showCardDraft = computed(() => isGomoku.value && gameStore.cardDraft.length > 0 && !gameStore.cardReveal);
-const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardReveal));
+const isPenaltyCardGame = computed(() => isRps.value || isGomoku.value || isMinesweeper.value);
+const showCardDraft = computed(() => isPenaltyCardGame.value && gameStore.cardDraft.length > 0 && !gameStore.cardReveal);
+const showCardReveal = computed(() => isPenaltyCardGame.value && Boolean(gameStore.cardReveal));
 
 function minesweeperCellClass(cell: MinesweeperCell): Record<string, boolean> {
   return {
@@ -609,17 +606,17 @@ function minesweeperNumberClass(adjacent: number): string {
             v-for="card in gameStore.cardDraft"
             :key="card.id"
             class="blind-card"
-            :disabled="!isCardWinner"
+            :disabled="!isCardLoser"
             @click="pickCard(card.id)"
           >
             {{ card.displayName }}
           </button>
         </div>
         <p
-          v-if="!isCardWinner"
+          v-if="!isCardLoser"
           class="hint"
         >
-          等待 {{ getPlayerLabel(gameStore.cardWinnerId) }} 选择卡牌。
+          等待 {{ getPlayerLabel(gameStore.cardLoserId) }} 盲选卡牌。
         </p>
       </div>
 
@@ -630,7 +627,7 @@ function minesweeperNumberClass(adjacent: number): string {
         <p class="eyebrow">盲选结果</p>
         <h3>{{ gameStore.cardReveal?.title }}</h3>
         <p>{{ gameStore.cardReveal?.description }}</p>
-        <p class="hint">等级：L{{ gameStore.cardReveal?.level }}</p>
+        <p class="hint">等级：L{{ gameStore.cardReveal?.level }} · 时长：{{ gameStore.cardReveal?.duration }} 秒</p>
         <NeonButton
           v-if="isCardLoser && !gameStore.cardAcknowledgedBy"
           @click="acknowledgeCard"

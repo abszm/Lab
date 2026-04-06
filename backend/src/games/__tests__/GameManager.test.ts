@@ -111,16 +111,21 @@ describe("GameManager", () => {
     expect(board.cells.length).toBe(81);
     expect(board.cells[0]).toHaveProperty("isMine");
 
-    const safeCell = board.cells.find((cell) => !cell.isMine);
-    expect(safeCell).toBeDefined();
+    const runtime = ((manager as unknown as {
+      games: Map<string, { state: { board: { cells: Array<{ id: string; hasMine: boolean }> } } }>;
+    }).games).get("ROOM02");
+    expect(runtime).toBeDefined();
+    const safeCellId = runtime!.state.board.cells.find((cell) => !cell.hasMine)?.id;
+    expect(safeCellId).toBeDefined();
 
     const outcome = manager.applyMove("ROOM02", {
       playerId: board.currentPlayerId,
-      action: safeCell?.id ?? "0-0",
+      action: safeCellId ?? "0-0",
       timestamp: Date.now()
     });
 
     expect(outcome.result).toBeDefined();
+    expect(outcome.result?.winner).toBeNull();
     expect(outcome.result?.isDraw).toBe(true);
     const outcomeBoard = outcome.state.board as { cells: Array<{ id: string; isMine: boolean; revealed: boolean }> };
     expect(outcomeBoard.cells.some((cell) => cell.revealed)).toBe(true);
