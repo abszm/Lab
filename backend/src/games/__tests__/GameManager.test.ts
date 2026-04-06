@@ -140,6 +140,29 @@ describe("GameManager", () => {
     }).toThrowError("NOT_YOUR_TURN");
   });
 
+  it("marks mine-clicking player as loser in minesweeper", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOMM2", "minesweeper-duel", ["p1", "p2"]);
+
+    const runtime = ((manager as unknown as { games: Map<string, { state: { board: { cells: Array<{ id: string; hasMine: boolean }>; currentPlayerId: string } } }> }).games).get("ROOMM2");
+    expect(runtime).toBeDefined();
+
+    const board = runtime!.state.board;
+    const mineCell = board.cells.find((cell) => cell.hasMine);
+    expect(mineCell).toBeDefined();
+
+    const currentPlayer = board.currentPlayerId;
+    const otherPlayer = currentPlayer === "p1" ? "p2" : "p1";
+    const outcome = manager.applyMove("ROOMM2", {
+      playerId: currentPlayer,
+      action: mineCell!.id,
+      timestamp: Date.now()
+    });
+
+    expect(outcome.result?.winner).toBe(otherPlayer);
+    expect(outcome.result?.isDraw).toBe(false);
+  });
+
   it("supports gomoku duel turns and winner detection", () => {
     const manager = new GameManager();
     manager.initRoomGame("ROOM03", "gomoku-duel", ["p1", "p2"]);
