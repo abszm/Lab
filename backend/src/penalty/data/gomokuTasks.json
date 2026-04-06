@@ -1,0 +1,12 @@
+[
+  { "text": "复盘这局你最关键的一步", "duration": 20, "type": "verbal" },
+  { "text": "保持专注姿势 15 秒", "duration": 15, "type": "physical" },
+  { "text": "描述你下一局前三步计划", "duration": 25, "type": "verbal" },
+  { "text": "完成一次无声落子演示", "duration": 18, "type": "action" },
+  { "text": "模仿对手刚才的制胜手法", "duration": 20, "type": "action" },
+  { "text": "闭眼回忆棋盘关键连线", "duration": 16, "type": "visual" },
+  { "text": "说出一个你忽略的防守点", "duration": 14, "type": "verbal" },
+  { "text": "完成 10 秒节奏拍手", "duration": 10, "type": "physical" },
+  { "text": "用一句话总结这局输赢原因", "duration": 12, "type": "verbal" },
+  { "text": "模拟下一局开局落子动作", "duration": 15, "type": "visual" }
+]
