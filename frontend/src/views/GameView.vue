@@ -60,10 +60,49 @@ interface GomokuBoard {
   cells: GomokuCell[];
 }
 
+interface RouletteStartPayload {
+  angle: number;
+  durationMs: number;
+  sectors: string[];
+  resultIndex: number;
+  resultLabel: string;
+  byPlayerId: string;
+}
+
 const restartRequesterId = ref("");
 const restartPending = ref(false);
 const minesweeperShake = ref(false);
 const gomokuMovePending = ref(false);
+const rouletteAngle = ref(0);
+const rouletteDurationMs = ref(4000);
+const rouletteSectors = ref<string[]>([]);
+const rouletteResult = ref("");
+const rouletteSpinning = ref(false);
+const rouletteTriggerPlayerId = ref("");
+
+const rouletteSectorAngle = computed(() => (rouletteSectors.value.length ? 360 / rouletteSectors.value.length : 0));
+const rouletteBackground = computed(() => {
+  if (!rouletteSectors.value.length) {
+    return "conic-gradient(#1e293b 0deg 180deg, #334155 180deg 360deg)";
+  }
+
+  return `conic-gradient(${rouletteSectors.value
+    .map((_, i) => {
+      const from = i * rouletteSectorAngle.value;
+      const to = (i + 1) * rouletteSectorAngle.value;
+      const color = i % 2 === 0 ? "#1e293b" : "#334155";
+      return `${color} ${from}deg ${to}deg`;
+    })
+    .join(",")})`;
+});
+
+function rouletteLabelStyle(index: number): Record<string, string> {
+  const base = rouletteSectorAngle.value || 1;
+  const rotate = index * base + base / 2;
+  return {
+    transform: `translateX(-50%) rotate(${rotate}deg)`
+  };
+}
 
 function getPlayerLabel(playerId: string): string {
   const room = roomStore.room;
@@ -90,6 +129,26 @@ function handleRoomState(payload: { room: RoomState | null }) {
 function handleRoomJoined(payload: { room: RoomState }) {
   roomStore.setRoom(payload.room);
   roomStore.clearError();
+}
+
+function handleRouletteState(payload: { angle: number; sectors: string[] }) {
+  rouletteAngle.value = payload.angle;
+  rouletteSectors.value = payload.sectors;
+}
+
+function handleRouletteSpinStart(payload: RouletteStartPayload) {
+  rouletteSectors.value = payload.sectors;
+  rouletteDurationMs.value = payload.durationMs;
+  rouletteAngle.value = payload.angle;
+  rouletteResult.value = "";
+  rouletteSpinning.value = true;
+  rouletteTriggerPlayerId.value = payload.byPlayerId;
+}
+
+function handleRouletteSpinEnd(payload: { resultLabel: string; byPlayerId: string }) {
+  rouletteResult.value = payload.resultLabel;
+  rouletteSpinning.value = false;
+  rouletteTriggerPlayerId.value = payload.byPlayerId;
 }
 
 function handleGameResult(payload: { result: GameResult }) {
@@ -199,6 +258,9 @@ onMounted(() => {
 
   socket.on("room:state", handleRoomState);
   socket.on("room:joined", handleRoomJoined);
+  socket.on("game:roulette:state", handleRouletteState);
+  socket.on("game:roulette:spin-start", handleRouletteSpinStart);
+  socket.on("game:roulette:spin-end", handleRouletteSpinEnd);
   socket.on("game:state", handleGameState);
   socket.on("game:result", handleGameResult);
   socket.on("penalty:trigger", handlePenaltyTrigger);
@@ -213,6 +275,8 @@ onMounted(() => {
   socket.on("player:disconnected", handleDisconnected);
   socket.on("player:reconnected", handleReconnected);
 
+  socket.emit("game:roulette:sync-request");
+
   if (!roomStore.room || roomStore.room.code !== code.value) {
     socket.emit("room:join", { code: code.value });
   }
@@ -226,6 +290,9 @@ onUnmounted(() => {
 
   socket.off("room:state", handleRoomState);
   socket.off("room:joined", handleRoomJoined);
+  socket.off("game:roulette:state", handleRouletteState);
+  socket.off("game:roulette:spin-start", handleRouletteSpinStart);
+  socket.off("game:roulette:spin-end", handleRouletteSpinEnd);
   socket.off("game:state", handleGameState);
   socket.off("game:result", handleGameResult);
   socket.off("penalty:trigger", handlePenaltyTrigger);
@@ -243,6 +310,10 @@ onUnmounted(() => {
 
 function move(action: string) {
   socketStore.socket?.emit("game:move", { move: { action } });
+}
+
+function requestRouletteSpin() {
+  socketStore.socket?.emit("game:roulette:spin-request");
 }
 
 function completePenalty() {
@@ -465,6 +536,44 @@ function minesweeperNumberClass(adjacent: number): string {
             />
           </button>
         </div>
+      </div>
+
+      <div class="roulette-shell">
+        <p class="hint">喝酒转盘（中场）</p>
+        <div class="roulette-wrap">
+          <div class="roulette-pointer"></div>
+          <div
+            class="roulette-wheel"
+            :style="{
+              transform: `rotate(${rouletteAngle}deg)`,
+              transitionDuration: `${rouletteDurationMs}ms`,
+              background: rouletteBackground
+            }"
+          >
+            <div
+              v-for="(item, index) in rouletteSectors"
+              :key="`${item}-${index}`"
+              class="roulette-label"
+              :style="rouletteLabelStyle(index)"
+            >
+              {{ item }}
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <NeonButton
+            :disabled="rouletteSpinning"
+            @click="requestRouletteSpin"
+          >
+            开启命运
+          </NeonButton>
+        </div>
+        <p
+          v-if="rouletteResult"
+          class="hint"
+        >
+          结果：{{ rouletteResult }}（触发者：{{ getPlayerLabel(rouletteTriggerPlayerId) }}）
+        </p>
       </div>
 
       <div
@@ -758,6 +867,58 @@ function minesweeperNumberClass(adjacent: number): string {
   margin: 0;
   color: #d1d6ff;
   font-size: 0.9rem;
+}
+
+.roulette-shell {
+  margin-top: 0.6rem;
+  padding: 0.9rem;
+  border-radius: 0.8rem;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 0, 100, 0.22), rgba(12, 18, 32, 0.92));
+  border: 1px solid rgba(255, 75, 139, 0.36);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.roulette-wrap {
+  position: relative;
+  width: min(320px, 90vw);
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.roulette-pointer {
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 24px solid #f43f5e;
+  z-index: 2;
+  margin-bottom: -10px;
+}
+
+.roulette-wheel {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  border-radius: 999px;
+  border: 8px solid #1e293b;
+  box-shadow: 0 0 20px rgba(255, 0, 100, 0.5), 0 0 40px rgba(0, 0, 0, 0.4) inset;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.12, 0.9, 0.18, 1);
+  overflow: hidden;
+}
+
+.roulette-label {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform-origin: 50% 142px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
 }
 
 .minesweeper .hint {

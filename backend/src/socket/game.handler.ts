@@ -40,6 +40,47 @@ interface RevealedCardState {
 const pendingCardReveals = new Map<string, PendingCardReveal>();
 const revealedCards = new Map<string, RevealedCardState>();
 
+interface RouletteRuntime {
+  angle: number;
+  isSpinning: boolean;
+}
+
+const rouletteStateByRoom = new Map<string, RouletteRuntime>();
+const rouletteTimers = new Map<string, NodeJS.Timeout>();
+
+const ROULETTE_SECTORS = Array.from({ length: 26 }, (_, index) => `扇区${String(index + 1).padStart(2, "0")}`);
+const ROULETTE_DURATION_MS = 4000;
+
+function normalizeAngle(value: number): number {
+  return ((value % 360) + 360) % 360;
+}
+
+function getRouletteState(roomCode: string): RouletteRuntime {
+  const existing = rouletteStateByRoom.get(roomCode);
+  if (existing) {
+    return existing;
+  }
+
+  const runtime: RouletteRuntime = { angle: 0, isSpinning: false };
+  rouletteStateByRoom.set(roomCode, runtime);
+  return runtime;
+}
+
+function clearRouletteTimer(roomCode: string): void {
+  const timer = rouletteTimers.get(roomCode);
+  if (!timer) {
+    return;
+  }
+  clearTimeout(timer);
+  rouletteTimers.delete(roomCode);
+}
+
+function resolveRouletteResultIndex(finalAngle: number): number {
+  const sectorAngle = 360 / ROULETTE_SECTORS.length;
+  const pointerAngle = normalizeAngle(360 - normalizeAngle(finalAngle));
+  return Math.floor(pointerAngle / sectorAngle) % ROULETTE_SECTORS.length;
+}
+
 function clearPenaltyTimer(roomCode: string): void {
   const timer = penaltyTimers.get(roomCode);
   if (!timer) {
@@ -184,6 +225,72 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
     deps.io.to(session.roomCode).emit("penalty:timeout", { reason: "completed" });
   });
 
+  socket.on("game:roulette:sync-request", () => {
+    const session = deps.store.getSessionBySocket(socket.id);
+    if (!session) {
+      socket.emit("room:error", { code: "SESSION_NOT_FOUND", message: "SESSION_NOT_FOUND" });
+      return;
+    }
+
+    const runtime = getRouletteState(session.roomCode);
+    socket.emit("game:roulette:state", {
+      angle: runtime.angle,
+      sectors: ROULETTE_SECTORS
+    });
+  });
+
+  socket.on("game:roulette:spin-request", () => {
+    const session = deps.store.getSessionBySocket(socket.id);
+    if (!session) {
+      socket.emit("room:error", { code: "SESSION_NOT_FOUND", message: "SESSION_NOT_FOUND" });
+      return;
+    }
+
+    const room = deps.store.getRoom(session.roomCode);
+    if (!room || room.players.length < 2) {
+      socket.emit("room:error", { code: "ROOM_NOT_READY", message: "ROOM_NOT_READY" });
+      return;
+    }
+
+    const runtime = getRouletteState(session.roomCode);
+    if (runtime.isSpinning) {
+      socket.emit("room:error", { code: "ROULETTE_SPINNING", message: "ROULETTE_SPINNING" });
+      return;
+    }
+
+    const delta = 1800 + Math.random() * 360;
+    const targetAngle = runtime.angle + delta;
+    const resultIndex = resolveRouletteResultIndex(targetAngle);
+    const resultLabel = ROULETTE_SECTORS[resultIndex];
+
+    runtime.isSpinning = true;
+    runtime.angle = targetAngle;
+
+    deps.io.to(session.roomCode).emit("game:roulette:spin-start", {
+      angle: targetAngle,
+      durationMs: ROULETTE_DURATION_MS,
+      sectors: ROULETTE_SECTORS,
+      resultIndex,
+      resultLabel,
+      byPlayerId: session.playerId
+    });
+
+    clearRouletteTimer(session.roomCode);
+    const timer = setTimeout(() => {
+      const latest = getRouletteState(session.roomCode);
+      latest.isSpinning = false;
+      rouletteTimers.delete(session.roomCode);
+      deps.io.to(session.roomCode).emit("game:roulette:spin-end", {
+        angle: latest.angle,
+        resultIndex,
+        resultLabel,
+        byPlayerId: session.playerId
+      });
+    }, ROULETTE_DURATION_MS + 60);
+    timer.unref();
+    rouletteTimers.set(session.roomCode, timer);
+  });
+
   socket.on("game:restart:request", () => {
     const session = deps.store.getSessionBySocket(socket.id);
     if (!session) {
@@ -231,6 +338,8 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       restartRequests.delete(session.roomCode);
       activePenalties.delete(session.roomCode);
       clearPenaltyTimer(session.roomCode);
+      clearRouletteTimer(session.roomCode);
+      rouletteStateByRoom.delete(session.roomCode);
       pendingCardReveals.delete(session.roomCode);
       revealedCards.delete(session.roomCode);
 
