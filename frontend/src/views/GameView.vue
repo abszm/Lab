@@ -62,6 +62,7 @@ interface GomokuBoard {
 
 const restartRequesterId = ref("");
 const restartPending = ref(false);
+const minesweeperShake = ref(false);
 const gomokuMovePending = ref(false);
 
 function getPlayerLabel(playerId: string): string {
@@ -95,6 +96,14 @@ function handleGameResult(payload: { result: GameResult }) {
   gameStore.setResult(payload.result);
   if (payload.result.winner && payload.result.cardOptions?.length) {
     gameStore.setCardDraft({ winnerId: payload.result.winner, cards: payload.result.cardOptions });
+  }
+
+  if (isMinesweeper.value && payload.result.winner === socketStore.playerId) {
+    minesweeperShake.value = true;
+    roomStore.setNotice("对手踩雷，已触发惩罚。请继续。");
+    window.setTimeout(() => {
+      minesweeperShake.value = false;
+    }, 360);
   }
 }
 
@@ -345,6 +354,23 @@ const isCardWinner = computed(() => gameStore.cardWinnerId === socketStore.playe
 const isCardLoser = computed(() => gameStore.cardLoserId === socketStore.playerId);
 const showCardDraft = computed(() => isGomoku.value && gameStore.cardDraft.length > 0 && !gameStore.cardReveal);
 const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardReveal));
+
+function minesweeperCellClass(cell: MinesweeperCell): Record<string, boolean> {
+  return {
+    "cell-outset": !cell.revealed,
+    "cell-inset": cell.revealed,
+    exploded: cell.exploded,
+    "cell-player-a": cell.revealed && cell.revealedBy === (players.value[0]?.id ?? ""),
+    "cell-player-b": cell.revealed && cell.revealedBy === (players.value[1]?.id ?? "")
+  };
+}
+
+function minesweeperNumberClass(adjacent: number): string {
+  if (adjacent < 1 || adjacent > 8) {
+    return "";
+  }
+  return `mine-number-${adjacent}`;
+}
 </script>
 
 <template>
@@ -376,30 +402,41 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
 
       <div
         v-else-if="isMinesweeper"
-        class="minesweeper"
+        class="minesweeper retro-shell"
+        :class="{ shake: minesweeperShake }"
       >
-        <p class="hint">经典扫雷模式：踩雷即输，清空安全格即胜。</p>
-        <p class="hint">{{ minesweeperStatusText }}</p>
-        <div class="mine-grid">
+        <div class="retro-header inset-panel">
+          <div class="retro-counter">{{ String(players[0]?.score ?? 0).padStart(3, "0") }}</div>
           <button
-            v-for="cell in minesweeperCells"
-            :key="cell.id"
-            class="cell"
-            :class="{
-              revealed: cell.revealed,
-              exploded: cell.exploded,
-              safe: cell.revealed && !cell.exploded
-            }"
-            :disabled="gameStore.penaltyActive || cell.revealed || !isMyTurnInMinesweeper || Boolean(minesweeperBoard?.gameOver)"
-            @click="revealCell(cell.id)"
+            class="retro-face outset-panel"
+            @click="requestRestart"
           >
-            <span v-if="!cell.revealed">■</span>
-            <span v-else-if="cell.isMine">雷</span>
-            <span v-else-if="cell.adjacent === 0"></span>
-            <span v-else>{{ cell.adjacent }}</span>
+            {{ minesweeperBoard?.gameOver ? "X" : "O" }}
           </button>
+          <div class="retro-counter">{{ String(players[1]?.score ?? 0).padStart(3, "0") }}</div>
         </div>
-        <p class="hint">剩余未翻开：{{ minesweeperCells.filter((cell) => !cell.revealed).length }}</p>
+        <div class="retro-field inset-panel">
+          <div class="mine-grid">
+            <button
+              v-for="cell in minesweeperCells"
+              :key="cell.id"
+              class="cell"
+              :class="minesweeperCellClass(cell)"
+              :disabled="gameStore.penaltyActive || cell.revealed || !isMyTurnInMinesweeper || Boolean(minesweeperBoard?.gameOver)"
+              @click="revealCell(cell.id)"
+            >
+              <span v-if="!cell.revealed"></span>
+              <span v-else-if="cell.isMine">*</span>
+              <span
+                v-else-if="cell.adjacent > 0"
+                :class="minesweeperNumberClass(cell.adjacent)"
+              >
+                {{ cell.adjacent }}
+              </span>
+            </button>
+          </div>
+        </div>
+        <p class="hint">{{ minesweeperStatusText }} · 剩余未翻开：{{ minesweeperCells.filter((cell) => !cell.revealed).length }}</p>
       </div>
 
       <div
@@ -567,34 +604,100 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
   margin: 0.8rem 0;
 }
 
-.mine-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(56px, 1fr));
-  gap: 0.45rem;
+.retro-shell {
+  background: #bdbdbd;
+  border-radius: 2px;
+  padding: 0.45rem;
+  border-top: 3px solid #ffffff;
+  border-left: 3px solid #ffffff;
+  border-right: 3px solid #7b7b7b;
+  border-bottom: 3px solid #7b7b7b;
+  color: #111;
 }
 
-.cell {
-  min-height: 56px;
-  border-radius: 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+.retro-header {
+  padding: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.retro-counter {
+  background: #111;
+  color: #ff1d25;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  min-width: 52px;
+  text-align: center;
+  padding: 0.15rem 0.25rem;
+}
+
+.retro-face {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
+.retro-field {
+  padding: 0.25rem;
+}
+
+.mine-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(28px, 1fr));
+  gap: 0;
+}
+
+.cell {
+  min-height: 28px;
+  border-radius: 0;
+  border: none;
+  background: #bdbdbd;
+  color: #111;
+  cursor: pointer;
+  font-family: "Courier New", monospace;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
 .cell:disabled {
-  opacity: 0.88;
+  opacity: 1;
   cursor: not-allowed;
 }
 
-.cell.revealed.safe {
-  background: rgba(72, 197, 120, 0.2);
-  border-color: rgba(72, 197, 120, 0.5);
+.cell-outset {
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #7b7b7b;
+  border-bottom: 2px solid #7b7b7b;
 }
 
-.cell.revealed.exploded {
-  background: rgba(255, 89, 89, 0.2);
-  border-color: rgba(255, 89, 89, 0.5);
+.cell-inset {
+  border-top: 1px solid #7b7b7b;
+  border-left: 1px solid #7b7b7b;
+  border-right: 1px solid #d9d9d9;
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.cell.exploded {
+  background: #ff8f8f;
+}
+
+.cell-player-a.cell-inset {
+  box-shadow: inset 0 0 0 1px rgba(70, 129, 255, 0.45);
+}
+
+.cell-player-b.cell-inset {
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.45);
 }
 
 .gomoku {
@@ -657,6 +760,10 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
   font-size: 0.9rem;
 }
 
+.minesweeper .hint {
+  color: #1f2937;
+}
+
 .card-panel {
   margin-top: 0.8rem;
   border-radius: 0.8rem;
@@ -715,6 +822,29 @@ const showCardReveal = computed(() => isGomoku.value && Boolean(gameStore.cardRe
   }
   50% {
     transform: scale(1.06);
+  }
+}
+
+.shake {
+  animation: shake 0.36s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
   }
 }
 </style>

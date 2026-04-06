@@ -31,3 +31,45 @@ body {
 .shell {
   width: min(720px, 96vw);
 }
+
+@layer components {
+  .outset-panel {
+    @apply border-t-[3px] border-l-[3px] border-white border-r-[3px] border-b-[3px] border-[#7b7b7b] bg-[#bdbdbd];
+  }
+
+  .inset-panel {
+    @apply border-t-[3px] border-l-[3px] border-[#7b7b7b] border-r-[3px] border-b-[3px] border-white bg-[#bdbdbd];
+  }
+
+  .mine-number-1 {
+    @apply text-blue-700 font-black;
+  }
+
+  .mine-number-2 {
+    @apply text-green-700 font-black;
+  }
+
+  .mine-number-3 {
+    @apply text-red-700 font-black;
+  }
+
+  .mine-number-4 {
+    @apply text-purple-900 font-black;
+  }
+
+  .mine-number-5 {
+    @apply text-amber-800 font-black;
+  }
+
+  .mine-number-6 {
+    @apply text-cyan-800 font-black;
+  }
+
+  .mine-number-7 {
+    @apply text-slate-900 font-black;
+  }
+
+  .mine-number-8 {
+    @apply text-gray-700 font-black;
+  }
+}
