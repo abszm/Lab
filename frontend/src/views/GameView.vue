@@ -79,6 +79,9 @@ const rouletteSectors = ref<string[]>([]);
 const rouletteResult = ref("");
 const rouletteSpinning = ref(false);
 const rouletteTriggerPlayerId = ref("");
+const flippedDraftCardId = ref("");
+const cardPickPending = ref(false);
+const CARD_FLIP_COMMIT_DELAY_MS = 420;
 
 const rouletteSectorAngle = computed(() => (rouletteSectors.value.length ? 360 / rouletteSectors.value.length : 0));
 const rouletteBackground = computed(() => {
@@ -181,6 +184,8 @@ function handleCardDraft(payload: { winnerId: string; loserId: string; cards: Ga
   if (!payload.cards) {
     return;
   }
+  flippedDraftCardId.value = "";
+  cardPickPending.value = false;
   gameStore.setCardDraft({ winnerId: payload.winnerId, loserId: payload.loserId, cards: payload.cards });
 }
 
@@ -189,6 +194,8 @@ function handleCardRevealed(payload: {
   loserId: string;
   card: { id: string; level: 1 | 2 | 3 | 4; title: string; description: string; duration: number; type: "action" | "verbal" | "visual" | "physical" };
 }) {
+  flippedDraftCardId.value = "";
+  cardPickPending.value = false;
   gameStore.setCardReveal(payload);
 }
 
@@ -226,6 +233,8 @@ function handleRoomError(payload: { message: string }) {
   roomStore.setError(normalizeError(payload.message));
   gomokuMovePending.value = false;
   minesweeperMovePending.value = false;
+  cardPickPending.value = false;
+  flippedDraftCardId.value = "";
 }
 
 function handleRoomClosed(payload: { reason?: string }) {
@@ -351,7 +360,15 @@ function respondRestart(accept: boolean) {
 }
 
 function pickCard(cardId: string) {
-  socketStore.socket?.emit("game:card:pick", { cardId });
+  if (!isCardLoser.value || cardPickPending.value) {
+    return;
+  }
+
+  flippedDraftCardId.value = cardId;
+  cardPickPending.value = true;
+  window.setTimeout(() => {
+    socketStore.socket?.emit("game:card:pick", { cardId });
+  }, CARD_FLIP_COMMIT_DELAY_MS);
 }
 
 function acknowledgeCard() {
@@ -426,6 +443,7 @@ const isCardLoser = computed(() => gameStore.cardLoserId === socketStore.playerI
 const isPenaltyCardGame = computed(() => isRps.value || isGomoku.value || isMinesweeper.value);
 const showCardDraft = computed(() => isPenaltyCardGame.value && gameStore.cardDraft.length > 0 && !gameStore.cardReveal);
 const showCardReveal = computed(() => isPenaltyCardGame.value && Boolean(gameStore.cardReveal));
+const cardInteractionDisabled = computed(() => !isCardLoser.value || cardPickPending.value);
 
 function minesweeperCellClass(cell: MinesweeperCell): Record<string, boolean> {
   return {
@@ -582,18 +600,32 @@ function minesweeperNumberClass(adjacent: number): string {
 
       <div
         v-if="showCardDraft"
-        class="card-panel"
+        class="card-panel floating-draft"
       >
-        <p class="hint">五连已达成，胜者请选择一张盲选卡牌。</p>
+        <p class="hint">失败方请点击一张扑克牌，翻转后即锁定本轮盲选。</p>
         <div class="card-grid">
           <button
             v-for="card in gameStore.cardDraft"
             :key="card.id"
-            class="blind-card"
-            :disabled="!isCardLoser"
+            class="blind-card poker-card"
+            :class="{
+              flipped: flippedDraftCardId === card.id,
+              inactive: cardPickPending && flippedDraftCardId !== card.id
+            }"
+            :disabled="cardInteractionDisabled"
             @click="pickCard(card.id)"
           >
-            {{ card.displayName }}
+            <span class="poker-card-inner">
+              <span class="poker-face poker-back">
+                <span class="poker-sign">JOKER</span>
+                <span class="poker-dot-grid"></span>
+              </span>
+              <span class="poker-face poker-front">
+                <span class="poker-level">L{{ card.level }}</span>
+                <strong>{{ card.displayName }}</strong>
+                <small>{{ flippedDraftCardId === card.id ? "已锁定" : "点击翻牌" }}</small>
+              </span>
+            </span>
           </button>
         </div>
         <p
@@ -941,22 +973,120 @@ function minesweeperNumberClass(adjacent: number): string {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  gap: 0.45rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.35rem, 1.4vw, 0.85rem);
 }
 
 .blind-card {
-  border-radius: 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: linear-gradient(145deg, rgba(255, 134, 194, 0.22), rgba(130, 87, 255, 0.2));
+  padding: 0;
+  border: none;
+  background: transparent;
   color: inherit;
-  min-height: 64px;
+  min-height: 170px;
+  perspective: 1000px;
   cursor: pointer;
 }
 
 .blind-card:disabled {
   opacity: 0.68;
   cursor: not-allowed;
+}
+
+.floating-draft {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(920px, calc(100vw - 1.2rem));
+  z-index: 36;
+  border: 1px solid rgba(255, 223, 153, 0.55);
+  background: linear-gradient(165deg, rgba(11, 34, 24, 0.9), rgba(30, 42, 88, 0.86));
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(8px);
+  animation: float-up 0.45s ease-out;
+}
+
+.poker-card {
+  position: relative;
+}
+
+.poker-card.inactive {
+  opacity: 0.5;
+}
+
+.poker-card-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.52s cubic-bezier(0.22, 0.8, 0.32, 1);
+}
+
+.poker-card.flipped .poker-card-inner {
+  transform: rotateY(180deg);
+}
+
+.poker-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.9rem;
+  backface-visibility: hidden;
+}
+
+.poker-back {
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(145deg, #8b1538, #14338b);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.poker-sign {
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+
+.poker-dot-grid {
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 0.6rem;
+}
+
+.poker-front {
+  transform: rotateY(180deg);
+  border: 2px solid rgba(244, 218, 170, 0.9);
+  background: linear-gradient(175deg, #fff8ef, #f5e8cf);
+  color: #271f12;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 0.4rem;
+  text-align: center;
+}
+
+.poker-front strong {
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.poker-front small {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.poker-level {
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #8f1f26;
 }
 
 .card-panel.revealed {
@@ -991,6 +1121,17 @@ function minesweeperNumberClass(adjacent: number): string {
   }
 }
 
+@keyframes float-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .shake {
   animation: shake 0.36s ease-in-out;
 }
@@ -1012,6 +1153,21 @@ function minesweeperNumberClass(adjacent: number): string {
   }
   80% {
     transform: translateX(2px);
+  }
+}
+
+@media (max-width: 860px) {
+  .floating-draft {
+    width: calc(100vw - 0.8rem);
+    padding: 0.7rem;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .blind-card {
+    min-height: 148px;
   }
 }
 
