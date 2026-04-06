@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import { GameManager } from "../games/GameManager.js";
+import { ROULETTE_TASK_POOL } from "../games/rouletteTaskPool.js";
 import { InMemoryStore } from "../rooms/inMemoryStore.js";
 import type { Penalty, RewardCardOption } from "../types/index.js";
 import { GAME_PENALTY_DATA } from "../penalty/data.js";
@@ -47,7 +48,7 @@ interface RouletteRuntime {
 const rouletteStateByRoom = new Map<string, RouletteRuntime>();
 const rouletteTimers = new Map<string, NodeJS.Timeout>();
 
-const ROULETTE_SECTORS = Array.from({ length: 26 }, (_, index) => `扇区${String(index + 1).padStart(2, "0")}`);
+const ROULETTE_SECTORS = ROULETTE_TASK_POOL.map((item) => item.color);
 const ROULETTE_DURATION_MS = 4000;
 
 function normalizeAngle(value: number): number {
@@ -290,7 +291,7 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
     const delta = 1800 + Math.random() * 360;
     const targetAngle = runtime.angle + delta;
     const resultIndex = resolveRouletteResultIndex(targetAngle);
-    const resultLabel = ROULETTE_SECTORS[resultIndex];
+    const resultTask = ROULETTE_TASK_POOL[resultIndex]?.title ?? "未命中任务";
 
     runtime.isSpinning = true;
     runtime.angle = targetAngle;
@@ -300,7 +301,7 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       durationMs: ROULETTE_DURATION_MS,
       sectors: ROULETTE_SECTORS,
       resultIndex,
-      resultLabel,
+      resultLabel: resultTask,
       byPlayerId: session.playerId
     });
 
@@ -312,7 +313,7 @@ export function gameHandler(socket: Socket, deps: Dependencies): void {
       deps.io.to(session.roomCode).emit("game:roulette:spin-end", {
         angle: latest.angle,
         resultIndex,
-        resultLabel,
+        resultLabel: resultTask,
         byPlayerId: session.playerId
       });
     }, ROULETTE_DURATION_MS + 60);
