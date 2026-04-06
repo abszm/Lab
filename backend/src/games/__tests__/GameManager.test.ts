@@ -103,17 +103,41 @@ describe("GameManager", () => {
     manager.initRoomGame("ROOM02", "minesweeper-duel", ["p1", "p2"]);
 
     const initialState = manager.getRoomGameState("ROOM02");
-    const board = initialState?.board as { cells: Array<{ id: string; hasMine?: boolean }> };
-    expect(board.cells.length).toBe(16);
-    expect(board.cells[0]).not.toHaveProperty("hasMine");
+    const board = initialState?.board as {
+      size: number;
+      currentPlayerId: string;
+      cells: Array<{ id: string; isMine: boolean; revealed: boolean }>;
+    };
+    expect(board.cells.length).toBe(81);
+    expect(board.cells[0]).toHaveProperty("isMine");
 
-    const [firstCell, secondCell] = board.cells;
-    manager.applyMove("ROOM02", { playerId: "p1", action: firstCell.id, timestamp: Date.now() });
-    const outcome = manager.applyMove("ROOM02", { playerId: "p2", action: secondCell.id, timestamp: Date.now() });
+    const safeCell = board.cells.find((cell) => !cell.isMine);
+    expect(safeCell).toBeDefined();
+
+    const outcome = manager.applyMove("ROOM02", {
+      playerId: board.currentPlayerId,
+      action: safeCell?.id ?? "0-0",
+      timestamp: Date.now()
+    });
 
     expect(outcome.result).toBeDefined();
-    const outcomeBoard = outcome.state.board as { cells: Array<{ id: string; hasMine?: boolean }> };
-    expect(outcomeBoard.cells[0]).not.toHaveProperty("hasMine");
+    expect(outcome.result?.isDraw).toBe(true);
+    const outcomeBoard = outcome.state.board as { cells: Array<{ id: string; isMine: boolean; revealed: boolean }> };
+    expect(outcomeBoard.cells.some((cell) => cell.revealed)).toBe(true);
+  });
+
+  it("returns NOT_YOUR_TURN for minesweeper move out of turn", () => {
+    const manager = new GameManager();
+    manager.initRoomGame("ROOMM1", "minesweeper-duel", ["p1", "p2"]);
+
+    const state = manager.getRoomGameState("ROOMM1");
+    const board = state?.board as { currentPlayerId: string; cells: Array<{ id: string; isMine: boolean }> };
+    const wrongPlayer = board.currentPlayerId === "p1" ? "p2" : "p1";
+    const anyCell = board.cells[0];
+
+    expect(() => {
+      manager.applyMove("ROOMM1", { playerId: wrongPlayer, action: anyCell.id, timestamp: Date.now() });
+    }).toThrowError("NOT_YOUR_TURN");
   });
 
   it("supports gomoku duel turns and winner detection", () => {
