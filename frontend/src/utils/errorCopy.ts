@@ -12,6 +12,7 @@ const ERROR_COPY: Record<string, string> = {
   NOT_YOUR_TURN: "还没轮到你落子，请稍等。",
   CELL_OCCUPIED: "该点位已被占用，请选择其他位置。",
   GAME_ALREADY_FINISHED: "本局已结束，请开始新一局。",
+  ROULETTE_SPINNING: "转盘正在旋转，请等待结果。",
   PLAYER_NOT_IN_ROOM: "当前玩家不在该房间中。",
   ALREADY_MOVED: "本回合你已经出招，请等待对手。",
   ROOM_CODE_GENERATION_FAILED: "房间码生成失败，请稍后重试。",
