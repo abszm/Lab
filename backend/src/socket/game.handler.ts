@@ -132,12 +132,16 @@ function buildPenaltyCardDraft(gameId: string, winnerId: string, loserId: string
     return null;
   }
 
+  const allPool = levels.flatMap((item) => item.items);
+  const uniqueAllPool = Array.from(new Map(allPool.map((item) => [item.id, item])).values());
+
   let basePool: Penalty[] = [];
   if (gameId === "minesweeper-duel" || gameId === "gomoku-duel") {
-    basePool = levels.flatMap((item) => item.items);
+    basePool = uniqueAllPool;
   } else {
     const level = levels.find((item) => winGap >= item.minGap && winGap <= item.maxGap) ?? levels[levels.length - 1];
-    basePool = level.items.length > 0 ? level.items : levels.flatMap((item) => item.items);
+    const uniqueLevelPool = Array.from(new Map(level.items.map((item) => [item.id, item])).values());
+    basePool = uniqueLevelPool.length >= 5 ? uniqueLevelPool : uniqueAllPool;
   }
 
   if (basePool.length === 0) {
@@ -145,13 +149,17 @@ function buildPenaltyCardDraft(gameId: string, winnerId: string, loserId: string
   }
 
   const shuffled = shuffleArray(basePool);
-  const mapped = Array.from({ length: 5 }, (_, index) => {
-    const selected = shuffled[index] ?? shuffled[Math.floor(Math.random() * shuffled.length)];
+  const selectedCards = shuffled.slice(0, Math.min(5, shuffled.length));
+  const mapped = selectedCards.map((selected, index) => {
     return {
       id: `penalty-card-${index + 1}-${selected.id}`,
       penalty: selected
     };
   });
+
+  if (mapped.length < 5) {
+    return null;
+  }
 
   return {
     winnerId,
